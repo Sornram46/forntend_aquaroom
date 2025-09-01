@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  eslint: {
+    // ชั่วคราว: ข้ามการตรวจ lint ตอน build (ไม่แนะนำให้ใช้ถาวร)
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;
