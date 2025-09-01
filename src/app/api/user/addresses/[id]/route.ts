@@ -4,12 +4,13 @@ import { query } from '@/lib/db';
 
 // อัพเดทที่อยู่
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     const token = request.headers.get('authorization')?.split(' ')[1];
-    const id = params.id;
     
     if (!token) {
       return NextResponse.json(
@@ -75,12 +76,13 @@ export async function PUT(
 
 // ลบที่อยู่
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     const token = request.headers.get('authorization')?.split(' ')[1];
-    const id = params.id;
     
     if (!token) {
       return NextResponse.json(

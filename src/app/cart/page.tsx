@@ -241,23 +241,30 @@ export default function CartPage() {
       text: 'โปรดรอสักครู่...',
       allowOutsideClick: false,
       didOpen: () => {
-        Swal.showLoading();
-      }
+        const btn = Swal.getConfirmButton(); // HTMLButtonElement | null
+        if (btn) {
+          Swal.showLoading(btn);
+        } else {
+          // fallback สำหรับบางเวอร์ชันให้ build ผ่าน
+          // @ts-ignore
+          Swal.showLoading();
+        }
+      },
+      // อย่าปิดปุ่มก่อน showLoading กับปุ่ม (ให้ใช้ค่า default = แสดงปุ่ม)
+      // showConfirmButton: true,
     });
 
     setTimeout(() => {
       router.push('/checkout/payment');
-
       Swal.fire({
         title: 'สำเร็จ!',
         text: 'ดำเนินการชำระเงินเรียบร้อยแล้ว',
         icon: 'success',
         confirmButtonColor: '#4F46E5',
-        showConfirmButton: false,  
-        timer: 1500,              
-        timerProgressBar: true 
+        showConfirmButton: false,
+        timer: 1500,
+        timerProgressBar: true
       })
-      
     }, 1500);
   };
 

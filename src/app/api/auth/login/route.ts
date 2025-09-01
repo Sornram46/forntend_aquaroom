@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { query } from '@/lib/db';
-import { cookies } from 'next/headers';
 
 export async function POST(request: Request) {
   try {
@@ -53,11 +52,7 @@ export async function POST(request: Request) {
     
     // สร้าง JWT token
     const token = jwt.sign(
-      { 
-        userId: user.id,
-        email: user.email,
-        role: user.role 
-      }, 
+      { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '7d' }
     );
@@ -71,26 +66,18 @@ export async function POST(request: Request) {
       avatar: user.avatar || null
     };
     
-    // ตั้งค่า HTTP-only cookie สำหรับ token
-    await cookies().set({
-        name: 'auth_token',
-        value: token,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict', 
-        maxAge: 60 * 60 * 24 * 7, // 7 วัน
-        path: '/'
-      });
-    
-    return NextResponse.json(
-      { 
-        success: true, 
-        message: 'เข้าสู่ระบบสำเร็จ', 
-        user: userData,
-        token // ส่ง token กลับไปด้วยเพื่อเก็บใน localStorage (สำหรับ AuthContext)
-      },
+    const res = NextResponse.json(
+      { success: true, message: 'เข้าสู่ระบบสำเร็จ', user: userData },
       { status: 200 }
     );
+    res.cookies.set('auth_token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+    return res;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(

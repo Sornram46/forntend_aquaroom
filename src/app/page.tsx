@@ -4,6 +4,9 @@ import ScrollAnimation from '@/components/ScrollAnimation';
 import CategoriesSection from '@/components/CategoriesSection';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';          // บังคับ SSR
+export const fetchCache = 'force-no-store';      // ถ้าต้อง no-store
+
 // ดึงข้อมูล homepage_setting จาก API (ฝั่ง Next.js app router)
 async function getHomepageSetting() {
   try {
@@ -32,7 +35,7 @@ async function getCategories() {
     
     console.log(`Fetching categories from: ${baseUrl}/api/categories`); // Debug log
     
-    const res = await fetch(`${baseUrl}/api/categories`, { 
+    const res = await fetch('/api/categories', { 
       cache: 'no-store',
       headers: {
         'Content-Type': 'application/json'

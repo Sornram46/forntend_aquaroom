@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation"; // เพิ่ม useSearchParams
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,7 +19,7 @@ interface Address {
   is_default: boolean;
 }
 
-export default function AddressPage() {
+function AddressPageContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams(); // เพิ่มการอ่าน query parameters
@@ -718,5 +718,13 @@ export default function AddressPage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AddressPageContent />
+    </Suspense>
   );
 }

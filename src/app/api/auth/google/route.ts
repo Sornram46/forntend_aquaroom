@@ -1,8 +1,7 @@
-import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { jwtDecode } from 'jwt-decode';
 import { query } from '@/lib/db';
-import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
 interface GoogleUserData {
   sub: string;
@@ -96,15 +95,15 @@ export async function POST(request: Request) {
     );
     
     // ตั้งค่า HTTP-only cookie สำหรับ token
-    await cookies().set({
-      name: 'auth_token',
-      value: token,
+    const res = NextResponse.redirect(new URL('/', request.url)); // หรือ NextResponse.json(...)
+    res.cookies.set('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7, // 7 วัน
-      path: '/'
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
     });
+    return res;
     
     // สร้าง user object ที่จะส่งกลับไปยัง client
     const userData = {
@@ -131,4 +130,20 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: Request) {
+  // ...existing codeที่สร้าง token...
+  const token = /* สร้าง JWT ของคุณ */ '';
+
+  // สร้าง response และตั้ง cookie บน response
+  const res = NextResponse.redirect(new URL('/', request.url)); // แก้เส้นทางตามที่ต้องการ
+  res.cookies.set('auth_token', token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7,
+  });
+  return res;
 }
