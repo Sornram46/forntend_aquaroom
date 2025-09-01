@@ -1,47 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// คูปองทดสอบ
-const TEST_COUPONS = [
-  {
-    code: 'WELCOME10',
-    name: 'ส่วนลดต้อนรับสมาชิกใหม่',
-    discount_type: 'percentage',
-    discount_value: 10,
-    min_order_amount: 500,
-    max_discount_amount: 1000,
-    is_active: true,
-    start_date: new Date('2024-01-01'),
-    end_date: new Date('2025-12-31')
-  },
-  {
-    code: 'AQUA100',
-    name: 'ส่วนลด 100 บาท',
-    discount_type: 'fixed_amount',
-    discount_value: 100,
-    min_order_amount: 800,
-    max_discount_amount: null,
-    is_active: true,
-    start_date: new Date('2024-01-01'),
-    end_date: new Date('2025-12-31')
-  },
-  {
-    code: 'SAVE50',
-    name: 'ส่วนลด 50 บาท',
-    discount_type: 'fixed_amount',
-    discount_value: 50,
-    min_order_amount: 300,
-    max_discount_amount: null,
-    is_active: true,
-    start_date: new Date('2024-01-01'),
-    end_date: new Date('2025-12-31')
-  }
-];
-
 export async function POST(request: NextRequest) {
   try {
     console.log('🎫 Coupon validation API called');
     
-    const body = await request.json();
+    const contentType = request.headers.get('content-type');
+    console.log('📋 Content-Type:', contentType);
+    
+    let body;
+    try {
+      const rawBody = await request.text();
+      console.log('📄 Raw body:', rawBody);
+      
+      if (!rawBody || rawBody.trim() === '') {
+        return NextResponse.json({
+          success: false,
+          error: 'ไม่มีข้อมูลใน request body'
+        }, { status: 400 });
+      }
+      
+      body = JSON.parse(rawBody);
+    } catch (parseError) {
+      console.error('❌ JSON Parse Error:', parseError);
+      return NextResponse.json({
+        success: false,
+        error: 'รูปแบบข้อมูลไม่ถูกต้อง (ต้องเป็น JSON)'
+      }, { status: 400 });
+    }
+
     const { code, order_total, items, email } = body;
 
     console.log('🎫 Request data:', { code, order_total });
@@ -53,98 +38,86 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // ค้นหาคูปอง
-    const coupon = TEST_COUPONS.find(c => 
-      c.code.toLowerCase() === code.toLowerCase() && c.is_active
-    );
-
-    console.log('🎫 Found coupon:', coupon?.code);
-
-    if (!coupon) {
+    if (!order_total) {
       return NextResponse.json({
         success: false,
-        error: 'ไม่พบรหัสคูปองที่ระบุหรือคูปองไม่พร้อมใช้งาน'
-      }, { status: 404 });
-    }
-
-    const now = new Date();
-
-    // ตรวจสอบวันที่ใช้งาน
-    if (now < coupon.start_date) {
-      return NextResponse.json({
-        success: false,
-        error: 'คูปองยังไม่เริ่มใช้งาน'
+        error: 'กรุณาระบุยอดสั่งซื้อ'
       }, { status: 400 });
     }
 
-    if (now > coupon.end_date) {
+    // เรียก Backend API แทน
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    console.log('🔗 Calling backend API:', `${backendUrl}/api/coupons/validate`);
+    
+    const response = await fetch(`${backendUrl}/api/coupons/validate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        code: code.trim().toUpperCase(),
+        order_amount: Number(order_total),
+        items,
+        email
+      })
+    });
+
+    const backendData = await response.json();
+    console.log('🎫 Backend response:', backendData);
+
+    if (!response.ok) {
       return NextResponse.json({
         success: false,
-        error: 'คูปองหมดอายุแล้ว'
-      }, { status: 400 });
+        error: backendData.message || backendData.error || 'ไม่สามารถตรวจสอบคูปองได้'
+      }, { status: response.status });
     }
 
-    // ตรวจสอบยอดขั้นต่ำ
-    if (coupon.min_order_amount && Number(order_total) < coupon.min_order_amount) {
-      return NextResponse.json({
-        success: false,
-        error: `ยอดสั่งซื้อขั้นต่ำ ${coupon.min_order_amount.toLocaleString('th-TH')} บาท (ปัจจุบัน ${Number(order_total).toLocaleString('th-TH')} บาท)`
-      }, { status: 400 });
-    }
-
-    // คำนวณส่วนลด
-    let discount = 0;
-    if (coupon.discount_type === 'percentage') {
-      discount = Math.round((Number(order_total) * coupon.discount_value) / 100);
-      
-      // ตรวจสอบส่วนลดสูงสุด
-      if (coupon.max_discount_amount && discount > coupon.max_discount_amount) {
-        discount = coupon.max_discount_amount;
-      }
-    } else {
-      discount = coupon.discount_value;
-    }
-
-    // ตรวจสอบว่าส่วนลดไม่เกินยอดสั่งซื้อ
-    if (discount > Number(order_total)) {
-      discount = Number(order_total);
-    }
-
-    console.log('🎫 Calculated discount:', discount);
-
+    // ส่งต่อข้อมูลจาก backend
     return NextResponse.json({
       success: true,
-      data: {
-        coupon_id: coupon.code,
-        code: coupon.code,
-        name: coupon.name,
-        discount_type: coupon.discount_type,
-        discount_value: coupon.discount_value,
-        discount_amount: discount,
-        message: `ใช้คูปอง "${coupon.name}" ได้ส่วนลด ${discount.toLocaleString('th-TH')} บาท`
-      }
+      data: backendData.data || backendData
     });
 
   } catch (error) {
-    console.error('❌ Error validating coupon:', error);
+    console.error('❌ Error calling backend API:', error);
     return NextResponse.json({
       success: false,
-      error: 'ไม่สามารถตรวจสอบคูปองได้: ' + (error instanceof Error ? error.message : 'Unknown error')
+      error: 'ไม่สามารถเชื่อมต่อกับระบบหลังบ้านได้'
     }, { status: 500 });
   }
 }
 
-// เพิ่ม GET method สำหรับทดสอบ
 export async function GET() {
-  return NextResponse.json({
-    success: true,
-    message: 'Coupon validation API is working',
-    available_coupons: TEST_COUPONS.map(c => ({
-      code: c.code,
-      name: c.name,
-      discount_type: c.discount_type,
-      discount_value: c.discount_value,
-      min_order_amount: c.min_order_amount
-    }))
-  });
+  try {
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    
+    const response = await fetch(`${backendUrl}/api/admin/coupons?status=active`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Backend API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return NextResponse.json({
+      success: true,
+      message: 'Coupon validation API is working',
+      available_coupons: data.data || data.coupons || []
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching coupons from backend:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'ไม่สามารถดึงข้อมูลคูปองได้',
+      details: typeof error === 'object' && error !== null && 'message' in error ? (error as { message: string }).message : String(error)
+    }, { status: 500 });
+  }
 }

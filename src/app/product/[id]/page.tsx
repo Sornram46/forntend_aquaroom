@@ -17,7 +17,33 @@ interface Product {
   imageUrlThree: string | null;
   imageUrlFour: string | null;
   category: string;
-  stock: number; // เพิ่ม field stock
+  stock: number;
+  
+  // เพิ่มข้อมูลใหม่
+  specifications?: string;
+  features?: string;
+  shippingInfo?: string;
+  warrantyInfo?: string;
+  returnPolicy?: string;
+  careInstructions?: string;
+  dimensions?: string;
+  weight?: string;
+  material?: string;
+  countryOrigin?: string;
+
+   // ✅ เพิ่มข้อมูลการจัดส่งจากฐานข้อมูล
+  hasSpecialShipping?: boolean;
+  specialShippingBase?: number;
+  specialShippingQty?: number;
+  specialShippingExtra?: number;
+  specialShippingNotes?: string;
+  shippingCostBangkok?: number;
+  shippingCostProvinces?: number;
+  shippingCostRemote?: number;
+  freeShippingThreshold?: number;
+  deliveryTime?: string;
+  shippingNotes?: string;
+  specialHandling?: boolean;
 }
 
 export default function ProductDetailPage() {
@@ -34,6 +60,7 @@ export default function ProductDetailPage() {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('details'); // เพิ่ม state สำหรับแท็บ
   
   const { addToCart } = useCart();
 
@@ -142,6 +169,465 @@ export default function ProductDetailPage() {
         const prevIndex = (currentIndex - 1 + images.length) % images.length;
         setCurrentImage(images[prevIndex]);
       }
+    }
+  };
+
+  // ฟังก์ชันสำหรับแสดงเนื้อหาตามแท็บ
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'details':
+        return (
+          <div className="py-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">รายละเอียดสินค้า</h3>
+            <div className="prose prose-indigo max-w-none">
+              <p className="text-gray-700 leading-relaxed mb-4">
+                {product?.description || 'ไม่มีรายละเอียดสินค้าเพิ่มเติม'}
+              </p>
+              
+              {/* ข้อมูลพื้นฐาน */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {product?.dimensions && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <dt className="font-medium text-gray-900">ขนาด</dt>
+                    <dd className="text-gray-700">{product.dimensions}</dd>
+                  </div>
+                )}
+                {product?.weight && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <dt className="font-medium text-gray-900">น้ำหนัก</dt>
+                    <dd className="text-gray-700">{product.weight}</dd>
+                  </div>
+                )}
+                {product?.material && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <dt className="font-medium text-gray-900">วัสดุ</dt>
+                    <dd className="text-gray-700">{product.material}</dd>
+                  </div>
+                )}
+                {product?.countryOrigin && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <dt className="font-medium text-gray-900">ประเทศผู้ผลิต</dt>
+                    <dd className="text-gray-700">{product.countryOrigin}</dd>
+                  </div>
+                )}
+              </div>
+
+              {/* รายละเอียดเพิ่มเติม */}
+              {product?.features && (
+                <div className="mb-6">
+                  <h4 className="font-medium text-gray-900 mb-2">คุณสมบัติพิเศษ</h4>
+                  <div 
+                    className="text-gray-700" 
+                    dangerouslySetInnerHTML={{ __html: product.features }}
+                  />
+                </div>
+              )}
+
+              {/* ข้อมูลการรับประกัน */}
+              <ul className="space-y-2 text-gray-700">
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  สินค้าคุณภาพดี
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  {product?.warrantyInfo || 'รับประกันสินค้า 1 ปี'}
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  จัดส่งฟรีเมื่อซื้อครบ 1,000 บาท
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  {product?.returnPolicy || 'เปลี่ยนหรือคืนได้ภายใน 7 วัน'}
+                </li>
+              </ul>
+            </div>
+          </div>
+        );
+
+      case 'specifications':
+        return (
+          <div className="py-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">คุณสมบัติ</h3>
+            <div className="prose prose-indigo max-w-none">
+              {product?.specifications ? (
+                <div 
+                  className="text-gray-700"
+                  dangerouslySetInnerHTML={{ __html: product.specifications }}
+                />
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-900 mb-2">ข้อมูลทั่วไป</h4>
+                      <dl className="space-y-2">
+                        <div className="flex justify-between">
+                          <dt className="text-gray-600">หมวดหมู่:</dt>
+                          <dd className="font-medium">{product?.category}</dd>
+                        </div>
+                        {product?.dimensions && (
+                          <div className="flex justify-between">
+                            <dt className="text-gray-600">ขนาด:</dt>
+                            <dd className="font-medium">{product.dimensions}</dd>
+                          </div>
+                        )}
+                        {product?.weight && (
+                          <div className="flex justify-between">
+                            <dt className="text-gray-600">น้ำหนัก:</dt>
+                            <dd className="font-medium">{product.weight}</dd>
+                          </div>
+                        )}
+                        {product?.material && (
+                          <div className="flex justify-between">
+                            <dt className="text-gray-600">วัสดุ:</dt>
+                            <dd className="font-medium">{product.material}</dd>
+                          </div>
+                        )}
+                      </dl>
+                    </div>
+                    
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-900 mb-2">ข้อมูลเพิ่มเติม</h4>
+                      <dl className="space-y-2">
+                        <div className="flex justify-between">
+                          <dt className="text-gray-600">สต็อก:</dt>
+                          <dd className="font-medium">{product?.stock} ชิ้น</dd>
+                        </div>
+                        {product?.countryOrigin && (
+                          <div className="flex justify-between">
+                            <dt className="text-gray-600">ประเทศผู้ผลิต:</dt>
+                            <dd className="font-medium">{product.countryOrigin}</dd>
+                          </div>
+                        )}
+                      </dl>
+                    </div>
+                  </div>
+                  
+                  {product?.careInstructions && (
+                    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h4 className="font-medium text-blue-900 mb-2">วิธีการดูแล</h4>
+                      <p className="text-blue-800">{product.careInstructions}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'shipping':
+  return (
+    <div className="py-6">
+      <h3 className="text-lg font-medium text-gray-900 mb-4">การจัดส่ง</h3>
+      <div className="prose prose-indigo max-w-none">
+        {/* ✅ แสดงข้อมูลการจัดส่งเพิ่มเติมจากฐานข้อมูล */}
+        {product?.shippingInfo && (
+          <div 
+            className="text-gray-700 mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg"
+            dangerouslySetInnerHTML={{ __html: product.shippingInfo }}
+          />
+        )}
+        
+        <div className="space-y-6">
+          {/* ✅ ข้อมูลการจัดส่งจริงจากฐานข้อมูล */}
+          {product?.hasSpecialShipping ? (
+            // การจัดส่งพิเศษ (สำหรับสินค้าพิเศษ เช่น ปลา)
+            <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-6">
+              <div className="flex items-center mb-4">
+                <svg className="w-6 h-6 text-orange-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                <h4 className="font-bold text-orange-900">🐠 การจัดส่งพิเศษ (สำหรับสินค้าพิเศษ)</h4>
+              </div>
+              
+              <div className="space-y-4 text-orange-800">
+                <div className="bg-white bg-opacity-70 rounded-lg p-4">
+                  <p className="font-medium mb-2 text-orange-900">📦 ค่าจัดส่งสำหรับสินค้าชิ้นนี้:</p>
+                  
+                  {product.specialShippingBase && product.specialShippingQty && product.specialShippingExtra && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-orange-100 p-3 rounded">
+                          <h5 className="font-medium mb-2 text-orange-900">💰 การคำนวณค่าจัดส่ง:</h5>
+                          <ul className="space-y-1 text-sm">
+                            <li>🔹 สั่ง 1-{product.specialShippingQty} ตัว = <span className="font-bold">{product.specialShippingBase} บาท</span></li>
+                            <li>🔹 สั่งเกิน {product.specialShippingQty} ตัว = <span className="font-bold">{product.specialShippingBase} + (จำนวนเกิน × {product.specialShippingExtra}) บาท</span></li>
+                          </ul>
+                        </div>
+                        
+                        <div className="bg-orange-100 p-3 rounded">
+                          <h6 className="font-medium mb-2 text-orange-900">📊 ตัวอย่างการคำนวณ:</h6>
+                          <div className="text-xs space-y-1">
+                            <p>• สั่ง <span className="font-bold">{product.specialShippingQty + 1}</span> ตัว = {product.specialShippingBase} + (1×{product.specialShippingExtra}) = <span className="font-bold text-orange-700">{product.specialShippingBase + product.specialShippingExtra} บาท</span></p>
+                            <p>• สั่ง <span className="font-bold">{product.specialShippingQty + 3}</span> ตัว = {product.specialShippingBase} + (3×{product.specialShippingExtra}) = <span className="font-bold text-orange-700">{product.specialShippingBase + (3 * product.specialShippingExtra)} บาท</span></p>
+                            <p>• สั่ง <span className="font-bold">{product.specialShippingQty + 6}</span> ตัว = {product.specialShippingBase} + (6×{product.specialShippingExtra}) = <span className="font-bold text-orange-700">{product.specialShippingBase + (6 * product.specialShippingExtra)} บาท</span></p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* ✅ เพิ่มเครื่องคำนวณค่าจัดส่งแบบ Interactive */}
+                      <div className="bg-white border border-orange-300 rounded-lg p-4">
+                        <h6 className="font-medium text-orange-900 mb-3">🧮 คำนวณค่าจัดส่งของคุณ:</h6>
+                        <div className="flex items-center space-x-4">
+                          <div>
+                            <label className="block text-sm font-medium text-orange-800 mb-1">จำนวนที่ต้องการสั่ง:</label>
+                            <input 
+                              type="number" 
+                              min="1" 
+                              defaultValue="1"
+                              className="w-20 px-2 py-1 border border-orange-300 rounded text-center"
+                              onChange={(e) => {
+                                const qty = parseInt(e.target.value) || 1;
+                                const baseShipping = product.specialShippingBase || 0;
+                                const threshold = product.specialShippingQty || 0;
+                                const extraCost = product.specialShippingExtra || 0;
+                                
+                                let totalShipping = baseShipping;
+                                if (qty > threshold) {
+                                  totalShipping = baseShipping + ((qty - threshold) * extraCost);
+                                }
+                                
+                                const resultElement = document.getElementById('shipping-calculator-result');
+                                if (resultElement) {
+                                  resultElement.innerHTML = `
+                                    <span class="font-bold text-orange-700">${totalShipping} บาท</span>
+                                    ${qty > threshold ? `(${baseShipping} + ${qty - threshold} × ${extraCost})` : ''}
+                                  `;
+                                }
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <span className="text-sm text-orange-800">ค่าจัดส่ง:</span>
+                            <div id="shipping-calculator-result" className="font-bold text-orange-700">
+                              {product.specialShippingBase} บาท
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {product.specialShippingNotes && (
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-300 rounded">
+                      <p className="text-yellow-800 text-sm">
+                        <strong>📝 หมายเหตุพิเศษ:</strong> {product.specialShippingNotes}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            // การจัดส่งปกติ
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="border border-gray-200 rounded-lg p-4 bg-gradient-to-br from-indigo-50 to-blue-50">
+                <div className="flex items-center mb-3">
+                  <svg className="w-6 h-6 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4h3a1 1 0 011 1v9a1 1 0 01-1 1H5a1 1 0 01-1-1V8a1 1 0 011-1h3z" />
+                  </svg>
+                  <h4 className="font-medium text-indigo-900">💰 ค่าจัดส่ง</h4>
+                </div>
+                <ul className="space-y-2 text-gray-700">
+                  <li className="flex justify-between items-center">
+                    <span>🏢 กรุงเทพมหานคร:</span>
+                    <span className="font-bold text-indigo-600">
+                      {product?.shippingCostBangkok ? `${product.shippingCostBangkok} บาท` : 'ฟรี'}
+                    </span>
+                  </li>
+                  <li className="flex justify-between items-center">
+                    <span>🏘️ ต่างจังหวัด:</span>
+                    <span className="font-bold text-blue-600">{product?.shippingCostProvinces || 50} บาท</span>
+                  </li>
+                  <li className="flex justify-between items-center">
+                    <span>🏔️ พื้นที่ห่างไกล:</span>
+                    <span className="font-bold text-purple-600">{product?.shippingCostRemote || 100} บาท</span>
+                  </li>
+                  {product?.freeShippingThreshold && (
+                    <li className="text-green-600 font-medium bg-green-50 p-2 rounded border border-green-200">
+                      🎉 จัดส่งฟรีเมื่อซื้อครบ {product.freeShippingThreshold.toLocaleString()} บาท
+                    </li>
+                  )}
+                </ul>
+              </div>
+              
+              <div className="border border-gray-200 rounded-lg p-4 bg-gradient-to-br from-green-50 to-emerald-50">
+                <div className="flex items-center mb-3">
+                  <svg className="w-6 h-6 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <h4 className="font-medium text-green-900">⏰ เวลาจัดส่ง</h4>
+                </div>
+                <ul className="space-y-2 text-gray-700">
+                  <li className="flex items-center">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                    ระยะเวลาจัดส่ง: <span className="font-bold ml-1">{product?.deliveryTime || '2-3 วันทำการ'}</span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                    จัดส่งทั่วประเทศ
+                  </li>
+                  <li className="flex items-center">
+                    <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                    ติดตามพัสดุได้
+                  </li>
+                  {product?.specialHandling && (
+                    <li className="flex items-center text-orange-600 bg-orange-50 p-2 rounded border border-orange-200">
+                      <span className="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
+                      🔶 สินค้าต้องการการดูแลพิเศษ
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          )}
+          
+          {/* ✅ เพิ่มข้อมูลการจัดส่งเพิ่มเติม */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* วิธีการจัดส่ง */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                <svg className="w-5 h-5 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                🚚 วิธีการจัดส่ง
+              </h4>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li>📦 Kerry Express</li>
+                <li>📦 Thailand Post (EMS)</li>
+                <li>📦 Flash Express</li>
+                <li>🏪 รับที่หน้าร้าน (ฟรี)</li>
+              </ul>
+            </div>
+
+            {/* พื้นที่จัดส่ง */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                <svg className="w-5 h-5 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                🗺️ พื้นที่จัดส่ง
+              </h4>
+              <ul className="space-y-2 text-gray-700 text-sm">
+                <li>🇹🇭 ทั่วประเทศไทย</li>
+                <li>🏝️ เกาะต่างๆ (ค่าจัดส่งเพิ่ม)</li>
+                <li>🚫 ไม่จัดส่งต่างประเทศ</li>
+              </ul>
+            </div>
+          </div>
+          
+          {/* หมายเหตุการจัดส่งทั่วไป */}
+          {product?.shippingNotes && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2 flex items-center">
+                <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                📋 หมายเหตุการจัดส่ง
+              </h4>
+              <p className="text-blue-800">{product.shippingNotes}</p>
+            </div>
+          )}
+          
+          {/* คำแนะนำทั่วไป */}
+          <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-start">
+              <svg className="w-5 h-5 text-yellow-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <h4 className="font-medium text-yellow-800">⚠️ ข้อควรทราบ</h4>
+                <div className="text-yellow-700 mt-1 space-y-1">
+                  <p>• ✅ ตรวจสอบสินค้าทันทีเมื่อได้รับ</p>
+                  <p>• ⏰ กรณีสินค้าชำรุดแจ้งภายใน 24 ชั่วโมง</p>
+                  <p>• 📦 เก็บบรรจุภัณฑ์เอาไว้สำหรับการเปลี่ยนหรือคืนสินค้า</p>
+                  <p>• 📞 ติดต่อเราหากมีปัญหาการจัดส่ง</p>
+                  {product?.hasSpecialShipping && (
+                    <p className="font-medium text-yellow-800 bg-yellow-100 p-2 rounded border border-yellow-300">
+                      🐠 สินค้าชิ้นนี้มีวิธีการจัดส่งพิเศษ กรุณาอ่านรายละเอียดด้านบน
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* ช่องทางติดต่อ */}
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-4">
+            <h4 className="font-medium text-indigo-900 mb-3 flex items-center">
+              <svg className="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              💬 ติดต่อสอบถาม
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-indigo-800">
+              <div className="flex items-center">
+                <span className="text-lg mr-2">📞</span>
+                <div>
+                  <p className="font-medium">โทรศัพท์</p>
+                  <p className="text-sm">02-XXX-XXXX</p>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <span className="text-lg mr-2">📱</span>
+                <div>
+                  <p className="font-medium">Line Official</p>
+                  <p className="text-sm">@aquaroom</p>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <span className="text-lg mr-2">✉️</span>
+                <div>
+                  <p className="font-medium">อีเมล</p>
+                  <p className="text-sm">info@aquaroom.com</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* ✅ เพิ่มแผนที่การจัดส่ง */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+              <svg className="w-5 h-5 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              🗺️ แผนที่ค่าจัดส่ง
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="bg-green-50 border border-green-200 rounded p-3">
+                <h5 className="font-medium text-green-800 mb-2">กรุงเทพมหานคร</h5>
+                <p className="text-green-700">ค่าจัดส่ง: {product?.shippingCostBangkok || 0} บาท</p>
+                <p className="text-xs text-green-600 mt-1">จัดส่งภายใน 1-2 วัน</p>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                <h5 className="font-medium text-blue-800 mb-2">ต่างจังหวัด</h5>
+                <p className="text-blue-700">ค่าจัดส่ง: {product?.shippingCostProvinces || 50} บาท</p>
+                <p className="text-xs text-blue-600 mt-1">จัดส่งภายใน 2-3 วัน</p>
+              </div>
+              <div className="bg-purple-50 border border-purple-200 rounded p-3">
+                <h5 className="font-medium text-purple-800 mb-2">พื้นที่ห่างไกล</h5>
+                <p className="text-purple-700">ค่าจัดส่ง: {product?.shippingCostRemote || 100} บาท</p>
+                <p className="text-xs text-purple-600 mt-1">จัดส่งภายใน 3-5 วัน</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+      default:
+        return null;
     }
   };
 
@@ -434,32 +920,51 @@ export default function ProductDetailPage() {
             <div className="max-w-3xl mx-auto">
               <div className="border-b border-gray-200">
                 <nav className="-mb-px flex space-x-8">
-                  <button className="whitespace-nowrap py-4 px-1 border-b-2 border-indigo-500 font-medium text-sm text-indigo-600">
+                  <button 
+                    onClick={() => setActiveTab('details')}
+                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                      activeTab === 'details' 
+                        ? 'border-indigo-500 text-indigo-600' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
                     รายละเอียดสินค้า
                   </button>
-                  <button className="whitespace-nowrap py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                  <button 
+                    onClick={() => setActiveTab('specifications')}
+                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                      activeTab === 'specifications' 
+                        ? 'border-indigo-500 text-indigo-600' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
                     คุณสมบัติ
                   </button>
-                  <button className="whitespace-nowrap py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                  <button 
+                    onClick={() => setActiveTab('shipping')}
+                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                      activeTab === 'shipping' 
+                        ? 'border-indigo-500 text-indigo-600' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
                     การจัดส่ง
                   </button>
                 </nav>
               </div>
               
-              <div className="py-6">
-                <h3 className="text-lg font-medium text-gray-900">รายละเอียดสินค้า</h3>
-                <div className="mt-4 prose prose-indigo max-w-none">
-                  <p>
-                    {product.description || 'ไม่มีรายละเอียดสินค้าเพิ่มเติม'}
-                  </p>
-                  <ul className="mt-4">
-                    <li>สินค้าคุณภาพดี</li>
-                    <li>รับประกันสินค้า 1 ปี</li>
-                    <li>จัดส่งฟรีเมื่อซื้อครบ 1,000 บาท</li>
-                    <li>เปลี่ยนหรือคืนได้ภายใน 7 วัน</li>
-                  </ul>
-                </div>
-              </div>
+              {/* เนื้อหาของแท็บ */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {renderTabContent()}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
         </div>

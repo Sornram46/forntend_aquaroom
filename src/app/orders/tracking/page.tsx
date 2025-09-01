@@ -19,7 +19,7 @@ export default function OrdersTrackingPage() {
     }
   }, [isLoading, isAuthenticated, router]);
   
-  const handleSearch = async (e) => {
+  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if (!orderNumber.trim()) {
@@ -34,7 +34,12 @@ export default function OrdersTrackingPage() {
     setIsSearching(true);
     
     try {
-      // ส่งคำขอค้นหาคำสั่งซื้อไปยัง API
+      // เรียกตรงไปที่หน้า tracking detail เลย
+      // แทนที่จะเรียก API เพื่อตรวจสอบก่อน
+      router.push(`/orders/tracking/${orderNumber.trim()}`);
+      
+      /* 
+      // วิธีเดิม - เรียก API เพื่อตรวจสอบก่อน
       const response = await fetch(`/api/orders/track?orderNumber=${orderNumber}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -47,6 +52,7 @@ export default function OrdersTrackingPage() {
       
       // ถ้าพบคำสั่งซื้อ ให้นำทางไปยังหน้ารายละเอียด
       router.push(`/orders/tracking/${orderNumber}`);
+      */
       
     } catch (error) {
       console.error('Error tracking order:', error);

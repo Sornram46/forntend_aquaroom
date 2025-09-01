@@ -39,7 +39,7 @@ export default function CategoriesSection({ categories }: CategoriesSectionProps
           {categories.map((category, index) => (
             <Link
               key={category.id}
-              href={`/categories/${category.id}`}
+              href={`/products`}
               className="group block scroll-scale"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
@@ -108,7 +108,7 @@ export default function CategoriesSection({ categories }: CategoriesSectionProps
         {/* View All Categories Button */}
         <div className="text-center mt-8 sm:mt-12 lg:mt-16 scroll-slide-up">
           <Link 
-            href="/categories"
+            href="/products"
             className="inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 border-2 border-indigo-600 text-indigo-600 font-semibold rounded-xl hover:bg-indigo-600 hover:text-white transition-all duration-300 hover:scale-105 text-sm sm:text-base"
           >
             ดูหมวดหมู่ทั้งหมด

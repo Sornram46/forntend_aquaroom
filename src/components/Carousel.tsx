@@ -9,18 +9,26 @@ interface CarouselItem {
   title: string;
   subtitle: string;
   image: string;
+   buttonText?: string;  // เพิ่มฟิลด์นี้
+  buttonUrl?: string;   // เพิ่มฟิลด์นี้
 }
 
 interface HomepageSettings {
   carousel_1_title?: string;
   carousel_1_subtitle?: string;
   carousel_1_image?: string;
+  carousel_1_button_text?: string;  // เพิ่มฟิลด์นี้
+  carousel_1_button_url?: string;   // เพิ่มฟิลด์นี้
   carousel_2_title?: string;
   carousel_2_subtitle?: string;
   carousel_2_image?: string;
+  carousel_2_button_text?: string;  // เพิ่มฟิลด์นี้
+  carousel_2_button_url?: string;   // เพิ่มฟิลด์นี้
   carousel_3_title?: string;
   carousel_3_subtitle?: string;
   carousel_3_image?: string;
+  carousel_3_button_text?: string;  // เพิ่มฟิลด์นี้
+  carousel_3_button_url?: string;   // เพิ่มฟิลด์นี้
 }
 
 export default function Carousel() {
@@ -44,7 +52,9 @@ export default function Carousel() {
             id: 1,
             title: data.carousel_1_title,
             subtitle: data.carousel_1_subtitle || '',
-            image: data.carousel_1_image
+            image: data.carousel_1_image,
+            buttonText: data.carousel_1_button_text || 'เริ่มช็อปปิ้ง',
+            buttonUrl: data.carousel_1_button_url || '/products'
           });
         }
         
@@ -53,7 +63,9 @@ export default function Carousel() {
             id: 2,
             title: data.carousel_2_title,
             subtitle: data.carousel_2_subtitle || '',
-            image: data.carousel_2_image
+            image: data.carousel_2_image,
+            buttonText: data.carousel_2_button_text || 'เริ่มช็อปปิ้ง',
+            buttonUrl: data.carousel_2_button_url || '/products'
           });
         }
         
@@ -62,7 +74,9 @@ export default function Carousel() {
             id: 3,
             title: data.carousel_3_title,
             subtitle: data.carousel_3_subtitle || '',
-            image: data.carousel_3_image
+            image: data.carousel_3_image,
+            buttonText: data.carousel_3_button_text || 'เริ่มช็อปปิ้ง',
+            buttonUrl: data.carousel_3_button_url || '/products'
           });
         }
         
@@ -73,19 +87,25 @@ export default function Carousel() {
               id: 1,
               title: 'ยินดีต้อนรับสู่ AquaRoom',
               subtitle: 'ร้านค้าออนไลน์ที่มีสินค้าคุณภาพดี',
-              image: '/images/carousel-1.jpg'
+              image: '/images/carousel-1.jpg',
+              buttonText: 'เริ่มช็อปปิ้ง',
+              buttonUrl: '/products'
             },
             {
               id: 2,
               title: 'สินค้าคุณภาพเยี่ยม',
               subtitle: 'คัดสรรมาเป็นพิเศษเพื่อคุณ',
-              image: '/images/carousel-2.jpg'
+              image: '/images/carousel-2.jpg',
+              buttonText: 'เริ่มช็อปปิ้ง',
+              buttonUrl: '/products'
             },
             {
               id: 3,
               title: 'จัดส่งรวดเร็ว',
               subtitle: 'ถึงมือคุณภายใน 1-3 วันทำการ',
-              image: '/images/carousel-3.jpg'
+              image: '/images/carousel-3.jpg',
+              buttonText: 'เริ่มช็อปปิ้ง',
+              buttonUrl: '/products'
             }
           );
         }
@@ -99,19 +119,25 @@ export default function Carousel() {
             id: 1,
             title: 'ยินดีต้อนรับสู่ AquaRoom',
             subtitle: 'ร้านค้าออนไลน์ที่มีสินค้าคุณภาพดี',
-            image: '/images/carousel-1.jpg'
+            image: '/images/carousel-1.jpg',
+            buttonText: 'เริ่มช็อปปิ้ง',
+            buttonUrl: '/products'
           },
           {
             id: 2,
             title: 'สินค้าคุณภาพเยี่ยม',
             subtitle: 'คัดสรรมาเป็นพิเศษเพื่อคุณ',
-            image: '/images/carousel-2.jpg'
+            image: '/images/carousel-2.jpg',
+            buttonText: 'เริ่มช็อปปิ้ง',
+            buttonUrl: '/products'
           },
           {
             id: 3,
             title: 'จัดส่งรวดเร็ว',
             subtitle: 'ถึงมือคุณภายใน 1-3 วันทำการ',
-            image: '/images/carousel-3.jpg'
+            image: '/images/carousel-3.jpg',
+            buttonText: 'เริ่มช็อปปิ้ง',
+            buttonUrl: '/products'
           }
         ]);
       } finally {
@@ -203,9 +229,7 @@ export default function Carousel() {
                   <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 text-base font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 shadow-xl">
                     เริ่มช็อปปิ้ง
                   </button>
-                  <button className="border-2 border-white text-white hover:bg-white hover:text-gray-900 px-8 py-3 text-base font-semibold rounded-xl transition-all duration-300 backdrop-blur-sm">
-                    เรียนรู้เพิ่มเติม
-                  </button>
+                
                 </motion.div>
               </motion.div>
             </div>

@@ -7,6 +7,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import Swal from 'sweetalert2';
 import Image from 'next/image';
+import { validateSlipWithOCR, validateSlipQuick, SlipValidationResult } from '@/lib/slipValidator';
 
 interface Address {
   id: number;
@@ -68,9 +69,13 @@ export default function PaymentPage() {
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<Array<'bank_transfer' | 'credit_card' | 'cod'>>([]);
 
   const subtotal = getCartTotal();
-  const shippingCost = subtotal >= 1000 ? 0 : 50;
+  const [shippingCost, setShippingCost] = useState(0);
   // แก้ไขการคำนวณยอดรวม
   const total = subtotal - discount + shippingCost;
+
+  // เพิ่มในส่วน state
+  const [isValidatingSlip, setIsValidatingSlip] = useState(false);
+  const [slipValidationResult, setSlipValidationResult] = useState<SlipValidationResult | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -260,37 +265,159 @@ export default function PaymentPage() {
     console.log('🔄 [DEBUG] Available payment methods updated:', availablePaymentMethods);
   }, [availablePaymentMethods]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  const validateSlip = async (file: File): Promise<{isValid: boolean, message: string}> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('/api/validate-slip', {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
+    
+    if (result.success && result.isSlip) {
+      return {
+        isValid: true,
+        message: `ตรวจสอบแล้ว: เป็นสลิปโอนเงิน (ความมั่นใจ ${result.confidence.toFixed(1)}%)`
+      };
+    } else {
+      return {
+        isValid: false,
+        message: 'รูปภาพนี้อาจไม่ใช่สลิปโอนเงิน กรุณาตรวจสอบอีกครั้ง'
+      };
+    }
+  } catch (error) {
+    return {
+      isValid: true, // ให้ผ่านไปก่อนถ้าตรวจสอบไม่ได้
+      message: 'ไม่สามารถตรวจสอบได้ จะดำเนินการต่อ'
+    };
+  }
+};
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('📸 [DEBUG] File change triggered');
     setValidationError(null);
+    setSlipValidationResult(null);
+    
     const file = e.target.files?.[0] || null;
 
     if (!file) {
+      console.log('📸 [DEBUG] No file selected');
       setPaymentProof(null);
       setPaymentProofPreview(null);
       return;
     }
 
+    console.log('📸 [DEBUG] File selected:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+
+    // ตรวจสอบขนาดไฟล์
     if (file.size > 5 * 1024 * 1024) {
+      console.log('📸 [DEBUG] File too large:', file.size);
       setValidationError('ไฟล์ต้องมีขนาดไม่เกิน 5MB');
       e.target.value = '';
       return;
     }
 
+    // ตรวจสอบประเภทไฟล์
     if (!file.type.startsWith('image/')) {
+      console.log('📸 [DEBUG] Invalid file type:', file.type);
       setValidationError('กรุณาอัปโหลดไฟล์รูปภาพเท่านั้น');
       e.target.value = '';
       return;
     }
 
+    console.log('📸 [DEBUG] File validation passed, reading file...');
     setPaymentProof(file);
 
+    // แสดงรูปภาพก่อน
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setPaymentProofPreview(reader.result as string);
+    reader.onloadend = async () => {
+      console.log('📸 [DEBUG] File read completed');
+      const result = reader.result as string;
+      setPaymentProofPreview(result);
+      
+      // เริ่มตรวจสอบสลิป
+      setIsValidatingSlip(true);
+      setValidationError('กำลังตรวจสอบความถูกต้องของสลิป...');
+      
+      try {
+        // ใช้การตรวจสอบแบบเร็วก่อน
+        const quickCheck = validateSlipQuick(file);
+        console.log('🚀 Quick validation result:', quickCheck);
+        
+        if (quickCheck.confidence >= 70) {
+          // ถ้าผ่านการตรวจสอบเร็วด้วยคะแนนสูง ไม่ต้อง OCR
+          setSlipValidationResult(quickCheck);
+          setValidationError(null);
+          setIsValidatingSlip(false);
+          
+          // แสดง toast สำเร็จ
+          const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+          });
+          
+          Toast.fire({
+            icon: 'success',
+            title: quickCheck.message
+          });
+          
+          return;
+        }
+        
+        // ถ้าไม่ผ่านการตรวจสอบเร็ว ใช้ OCR
+        console.log('🔍 Starting OCR validation...');
+        const ocrResult = await validateSlipWithOCR(file);
+        console.log('📖 OCR validation result:', ocrResult);
+        
+        setSlipValidationResult(ocrResult);
+        setValidationError(null);
+        
+        // แสดงผลลัพธ์
+        const Toast = Swal.mixin({
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 4000,
+          timerProgressBar: true,
+        });
+        
+        Toast.fire({
+          icon: ocrResult.isValid ? 'success' : 'warning',
+          title: ocrResult.message
+        });
+        
+      } catch (error) {
+        console.error('❌ Error validating slip:', error);
+        setValidationError('ไม่สามารถตรวจสอบได้ จะดำเนินการต่อ');
+        setSlipValidationResult({
+          isValid: true,
+          confidence: 0,
+          message: 'ไม่สามารถตรวจสอบได้'
+        });
+      } finally {
+        setIsValidatingSlip(false);
+      }
     };
+    
+    reader.onerror = (error) => {
+      console.error('📸 [DEBUG] Error reading file:', error);
+      setValidationError('ไม่สามารถอ่านไฟล์ได้ กรุณาลองอีกครั้ง');
+      setIsValidatingSlip(false);
+    };
+    
     reader.readAsDataURL(file);
   };
-
   const handlePayment = async () => {
     if (paymentMethod === 'bank_transfer' && !paymentProof) {
       setValidationError('กรุณาแนบหลักฐานการโอนเงิน');
@@ -304,7 +431,7 @@ export default function PaymentPage() {
     if (validCartItems.length !== cartItems.length) {
       Swal.fire({
         title: 'เกิดข้อผิดพลาด',
-        text: 'พบข้อมูลสินค้าในตะกร้าไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง',
+        text: 'พบข้อมูลสินค้าในตะกร้ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง',
         icon: 'error',
         confirmButtonText: 'ตกลง',
       });
@@ -314,42 +441,64 @@ export default function PaymentPage() {
     // แปลง id ให้เป็นตัวเลขเสมอ เพื่อให้ตรงกับรูปแบบในฐานข้อมูล
     const normalizedCartItems = validCartItems.map(item => ({
       ...item,
-      id: Number(item.id), // แปลง id ให้เป็น number
+      id: Number(item.id),
     }));
 
     setIsProcessing(true);
 
     try {
-      // สร้าง FormData สำหรับส่งข้อมูลและไฟล์
-      const formData = new FormData();
-      formData.append('addressId', shippingAddress?.id.toString() || '');
-      formData.append('paymentMethod', paymentMethod);
-      formData.append('subtotal', subtotal.toString());
-      formData.append('shippingFee', shippingCost.toString());
-      
-      // เพิ่มข้อมูลคูปอง
-      formData.append('discount', discount.toString());
-      formData.append('couponCode', appliedCoupon || '');
-      
-      const finalTotal = total + (paymentMethod === 'cod' ? 30 : 0);
-      formData.append('totalAmount', finalTotal.toString());
-      
-      // ส่งข้อมูลสินค้าที่ได้ตรวจสอบและแปลงค่า id แล้ว
-      formData.append('cartItems', JSON.stringify(normalizedCartItems));
-      
+      let paymentProofUrl = null;
+
+      // อัปโหลดหลักฐานการโอนไปยัง Supabase ก่อน (ถ้ามี)
       if (paymentMethod === 'bank_transfer' && paymentProof) {
-        formData.append('paymentProof', paymentProof);
+        console.log('📤 Uploading payment proof to Supabase...');
+        
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', paymentProof);
+
+        const uploadResponse = await fetch('/api/upload/payment-proof', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          },
+          body: uploadFormData
+        });
+
+        if (!uploadResponse.ok) {
+          const uploadError = await uploadResponse.json();
+          throw new Error(uploadError.message || 'ไม่สามารถอัปโหลดหลักฐานการโอนได้');
+        }
+
+        const uploadResult = await uploadResponse.json();
+        paymentProofUrl = uploadResult.url; // URL ของไฟล์ใน Supabase
+        
+        console.log('✅ Payment proof uploaded successfully:', paymentProofUrl);
       }
-      
-      // เพิ่ม console.log เพื่อตรวจสอบข้อมูลที่ส่งไป
-      console.log('Sending cart items:', normalizedCartItems);
+
+      // สร้างคำสั่งซื้อ
+      const orderData = {
+        addressId: shippingAddress?.id.toString() || '',
+        paymentMethod,
+        subtotal: subtotal.toString(),
+        shippingFee: shippingCost.toString(),
+        discount: discount.toString(),
+        couponCode: appliedCoupon || '',
+        totalAmount: finalTotal.toString(),
+        cartItems: JSON.stringify(normalizedCartItems),
+        paymentProofUrl, // ส่ง URL แทนไฟล์
+        couponId: null,
+        couponDiscount: discount.toString()
+      };
+
+      console.log('Sending order data:', orderData);
       
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
-        body: formData
+        body: JSON.stringify(orderData)
       });
       
       // ตรวจสอบข้อผิดพลาดจาก API แบบละเอียด
@@ -360,12 +509,11 @@ export default function PaymentPage() {
       }
       
       const apiResult = await response.json();
-      const orderNumber = apiResult.order.orderNumber; // เก็บ orderNumber ไว้ในตัวแปรแยก
+      const orderNumber = apiResult.order.orderNumber;
 
       // ล้างตะกร้าก่อนที่จะแสดง SweetAlert
       clearCart();
 
-      // เพิ่ม console.log เพื่อตรวจสอบค่า
       console.log('Order created successfully:', {orderNumber});
 
       Swal.fire({
@@ -375,11 +523,9 @@ export default function PaymentPage() {
         confirmButtonText: 'ดูรายการสั่งซื้อ',
       }).then((result) => {
         if (result.isConfirmed) {
-          // ใช้ window.location.href แทน router.push เพื่อความแน่นอน
           window.location.href = `/orders/tracking/${orderNumber}`;
         } else {
-          // กรณีผู้ใช้ปิด modal โดยไม่กดปุ่ม
-          router.push('/orders'); // นำทางไปหน้ารายการคำสั่งซื้อทั้งหมดแทน
+          router.push('/orders');
         }
       });
       
@@ -647,8 +793,7 @@ const renderBankDetails = () => {
                     // ถ้าไม่มี icon ให้แสดง default icon
                     <div className="flex-shrink-0 w-12 h-12 mr-3 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
                       <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h8a2 2 0 012 2v-2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                       </svg>
                     </div>
                   )}
@@ -780,20 +925,103 @@ const renderBankDetails = () => {
                     <h3 className="text-sm font-medium text-gray-700 mb-2">
                       แนบหลักฐานการโอนเงิน <span className="text-red-500">*</span>
                     </h3>
+                    
+                    {/* แสดงผลการตรวจสอบ */}
+                    {slipValidationResult && (
+                      <div className={`mb-4 p-3 rounded-md ${
+                        slipValidationResult.isValid 
+                          ? 'bg-green-50 border border-green-200' 
+                          : 'bg-yellow-50 border border-yellow-200'
+                      }`}>
+                        <div className="flex items-center">
+                          <div className={`flex-shrink-0 ${
+                            slipValidationResult.isValid ? 'text-green-500' : 'text-yellow-500'
+                          }`}>
+                            {slipValidationResult.isValid ? '✅' : '⚠️'}
+                          </div>
+                          <div className="ml-2">
+                            <p className={`text-sm font-medium ${
+                              slipValidationResult.isValid ? 'text-green-800' : 'text-yellow-800'
+                            }`}>
+                              {slipValidationResult.message}
+                            </p>
+                            {slipValidationResult.foundKeywords && slipValidationResult.foundKeywords.length > 0 && (
+                              <p className="text-xs text-gray-600 mt-1">
+                                พบคำสำคัญ: {slipValidationResult.foundKeywords.slice(0, 3).join(', ')}
+                                {slipValidationResult.foundKeywords.length > 3 && '...'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* แสดงสถานะการตรวจสอบ */}
+                    {isValidatingSlip && (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                          <p className="ml-2 text-sm text-blue-700">กำลังตรวจสอบสลิปโอนเงิน...</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* ...existing file upload JSX... */}
+                    {paymentProofPreview && (
+                      <div className="mb-4 p-4 border border-gray-300 rounded-lg bg-gray-50">
+                        <div className="flex items-start justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">หลักฐานการโอนเงิน:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPaymentProof(null);
+                              setPaymentProofPreview(null);
+                              if (fileInputRef.current) fileInputRef.current.value = '';
+                            }}
+                            className="text-red-600 hover:text-red-800 text-sm"
+                          >
+                            ลบรูป
+                          </button>
+                        </div>
+                        <div className="relative w-full h-64 bg-white rounded-lg border border-gray-200 overflow-hidden">
+                          <Image
+                            src={paymentProofPreview}
+                            alt="หลักฐานการโอนเงิน"
+                            fill
+                            className="object-contain"
+                            onLoad={() => console.log('📸 [DEBUG] Image loaded successfully')}
+                            onError={(e) => {
+                              console.error('📸 [DEBUG] Image failed to load:', e);
+                              setValidationError('ไม่สามารถแสดงรูปภาพได้ กรุณาลองอัปโหลดใหม่');
+                            }}
+                          />
+                        </div>
+                        {paymentProof && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            ไฟล์: {paymentProof.name} ({(paymentProof.size / 1024 / 1024).toFixed(2)} MB)
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* พื้นที่อัปโหลด */}
                     <div
-                      className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-indigo-400 transition-colors cursor-pointer"
+                      className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md transition-colors cursor-pointer ${
+                        paymentProofPreview 
+                          ? 'border-green-300 bg-green-50 hover:border-green-400' 
+                          : 'border-gray-300 hover:border-indigo-400'
+                      }`}
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <div className="space-y-1 text-center">
                         {paymentProofPreview ? (
-                          <div className="relative w-full h-48 mx-auto">
-                            <Image
-                              src={paymentProofPreview}
-                              alt="หลักฐานการโอน"
-                              fill
-                              className="object-contain"
-                            />
-                          </div>
+                          <>
+                            <svg className="mx-auto h-8 w-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <p className="text-sm text-green-600 font-medium">อัปโหลดสำเร็จ</p>
+                            <p className="text-xs text-gray-500">คลิกเพื่อเปลี่ยนรูปภาพ</p>
+                          </>
                         ) : (
                           <>
                             <svg
@@ -811,7 +1039,7 @@ const renderBankDetails = () => {
                               />
                             </svg>
                             <div className="flex text-sm text-gray-600">
-                              <label className="relative cursor-pointer rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
+                              <label className="relative cursor-pointer rounded-md font-medium text-indigo-600 hover:text-indigo-500">
                                 <span>อัปโหลดรูปภาพ</span>
                                 <input
                                   ref={fileInputRef}
@@ -830,25 +1058,9 @@ const renderBankDetails = () => {
                         )}
                       </div>
                     </div>
+                    
                     {validationError && (
                       <p className="mt-2 text-sm text-red-600">{validationError}</p>
-                    )}
-                    {paymentProof && (
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="text-sm text-gray-500">{paymentProof.name}</span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPaymentProof(null);
-                            setPaymentProofPreview(null);
-                            if (fileInputRef.current) fileInputRef.current.value = '';
-                          }}
-                          className="text-sm text-red-600 hover:text-red-800"
-                        >
-                          ลบ
-                        </button>
-                      </div>
                     )}
                   </div>
                 )}

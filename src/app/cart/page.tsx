@@ -30,6 +30,8 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState('');
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isCheckingAddress, setIsCheckingAddress] = useState(false);
+  const [shippingCost, setShippingCost] = useState(50);
+  const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
 
   useEffect(() => {
     setTimeout(() => {
@@ -38,8 +40,39 @@ export default function CartPage() {
   }, []);
 
   const subtotal = getCartTotal();
-  const shippingCost = subtotal >= 1000 ? 0 : 50;
   const total = subtotal - discount + shippingCost;
+
+  // ฟังก์ชันคำนวณค่าจัดส่ง
+  const calculateShipping = async () => {
+    if (cartItems.length === 0) return;
+    
+    setIsCalculatingShipping(true);
+    try {
+      const response = await fetch('/api/shipping/calculate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: cartItems,
+          subtotal: subtotal
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setShippingCost(data.shippingCost);
+      }
+    } catch (error) {
+      console.error('Error calculating shipping:', error);
+    } finally {
+      setIsCalculatingShipping(false);
+    }
+  };
+
+  useEffect(() => {
+    calculateShipping();
+  }, [cartItems]);
 
   // แก้ไขฟังก์ชัน applyCoupon ให้ debug ดีขึ้น
   const applyCoupon = async () => {
@@ -219,8 +252,10 @@ export default function CartPage() {
         title: 'สำเร็จ!',
         text: 'ดำเนินการชำระเงินเรียบร้อยแล้ว',
         icon: 'success',
-        confirmButtonText: 'ตกลง',
         confirmButtonColor: '#4F46E5',
+        showConfirmButton: false,  
+        timer: 1500,              
+        timerProgressBar: true 
       })
       
     }, 1500);
@@ -442,7 +477,6 @@ export default function CartPage() {
                           ใช้คูปอง
                         </motion.button>
                       </div>
-                      <p className="mt-2 text-xs text-gray-500">* ตัวอย่างคูปอง: welcome10, aqua100</p>
                     </div>
                   )}
                   
@@ -501,11 +535,11 @@ export default function CartPage() {
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">•</span>
-                    รับประกันความพึงพอใจหรือคืนเงิน 30 วัน
+                    รับประกันความพึงพอใจหรือคืนเงิน 15 วัน (บางรายการ)
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">•</span>
-                    มีคำถาม? ติดต่อฝ่ายบริการลูกค้า 02-123-4567
+                    มีคำถาม? ติดต่อฝ่ายบริการลูกค้า 095-160-4051
                   </li>
                 </ul>
               </motion.div>

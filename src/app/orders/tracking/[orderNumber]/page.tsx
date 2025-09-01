@@ -64,24 +64,36 @@ export default function OrderTrackingDetailPage() {
     try {
       setLoading(true);
       
+      console.log('🔍 Fetching order tracking for:', params.orderNumber);
+      
       const response = await fetch(`/api/orders/track/${params.orderNumber}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
       
+      console.log('📊 API response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error('ไม่พบข้อมูลการติดตามคำสั่งซื้อ');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ API Error:', errorData);
+        throw new Error(errorData.message || 'ไม่พบข้อมูลการติดตามคำสั่งซื้อ');
       }
       
       const data = await response.json();
+      console.log('📦 API response data:', data);
+      
+      if (!data.success) {
+        throw new Error(data.message || 'ไม่พบข้อมูลการติดตามคำสั่งซื้อ');
+      }
+      
       setOrder(data.order);
       
     } catch (error) {
       console.error('Error fetching order tracking:', error);
       Swal.fire({
         title: 'เกิดข้อผิดพลาด',
-        text: 'ไม่สามารถโหลดข้อมูลการติดตามคำสั่งซื้อได้',
+        text: error instanceof Error ? error.message : 'ไม่สามารถโหลดข้อมูลการติดตามคำสั่งซื้อได้',
         icon: 'error',
         confirmButtonText: 'ตกลง',
       }).then(() => {

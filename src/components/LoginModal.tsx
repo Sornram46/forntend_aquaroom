@@ -272,24 +272,8 @@ export default function LoginModal({ isOpen, onClose, redirectAfterLogin }: Logi
                           locale="th"
                         />
                       </div>
-                      <button
-                        type="button"
-                        className="w-full flex items-center justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                      >
-                        <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12.545,10.239v3.818h5.556c-0.451,2.562-2.832,4.552-5.556,4.552c-3.032,0-5.5-2.466-5.5-5.5s2.468-5.5,5.5-5.5c1.745,0,3.332,0.81,4.5,2.18l2.9-2.282C18.177,5.276,15.247,3.5,12.545,3.5c-4.418,0-8,3.582-8,8s3.582,8,8,8c4.837,0,8.068-3.356,8.068-8.076c0-0.553-0.053-1.093-0.166-1.613H12.545z" />
-                        </svg>
-                        Google
-                      </button>
-                      <button
-                        type="button"
-                        className="w-full flex items-center justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                      >
-                        <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M22.675 0H1.325C0.593 0 0 0.593 0 1.325v21.351C0 23.407 0.593 24 1.325 24H12.82v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463 0.099 2.795 0.143v3.24l-1.918 0.001c-1.504 0-1.795 0.715-1.795 1.763v2.313h3.587l-0.467 3.622h-3.12V24h6.116c0.73 0 1.323-0.593 1.323-1.325V1.325C24 0.593 23.407 0 22.675 0z" />
-                        </svg>
-                        Facebook
-                      </button>
+
+            
                     </div>
                   </div>
                 </form>
