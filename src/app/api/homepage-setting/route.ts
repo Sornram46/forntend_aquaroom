@@ -1,45 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+export const runtime = 'nodejs';
+
+const raw =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.ADMIN_API_URL ||
+  process.env.BACKEND_URL ||
+  '';
+const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
+
 // GET - ดึงข้อมูลการตั้งค่าหน้าแรก รวม Logo
 export async function GET() {
   try {
-    const result = await query(
-      'SELECT * FROM homepage_setting ORDER BY id DESC LIMIT 1',
-      []
-    );
-
-    if (result.rows.length === 0) {
-      // ส่งค่าเริ่มต้นสำหรับ logo
-      return NextResponse.json({
-        logo_url: null,
-        logo_alt_text: 'AquaRoom Logo',
-        logo_width: 120,
-        logo_height: 40,
-        dark_logo_url: null
-      });
-    }
-
-    const homepageData = result.rows[0];
-    
-    // เพิ่มข้อมูล logo ให้ครบถ้วน
-    const responseData = {
-      ...homepageData,
-      // กำหนดค่าเริ่มต้นหากไม่มีข้อมูล
-      logo_alt_text: homepageData.logo_alt_text || 'AquaRoom Logo',
-      logo_width: homepageData.logo_width || 120,
-      logo_height: homepageData.logo_height || 40
-    };
-
-    return NextResponse.json(responseData);
-  } catch (error) {
-    console.error('Database query error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch homepage setting' },
-      { status: 500 }
-    );
+    if (!BASE) throw new Error('BACKEND URL is missing');
+    const res = await fetch(`${BASE}/api/homepage-setting`, { cache: 'no-store' });
+    return new Response(await res.text(), {
+      status: res.status,
+      headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
+    });
+  } catch (e) {
+    console.error('Proxy /api/homepage-setting failed:', e);
+    return Response.json({ error: 'Upstream error' }, { status: 502 });
   }
 }
+
 
 // PATCH - อัปเดตเฉพาะ Logo
 export async function PATCH(request: NextRequest) {

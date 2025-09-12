@@ -1,35 +1,24 @@
 import { NextResponse } from 'next/server';
 
+export const runtime = 'nodejs';
+
+const raw =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.ADMIN_API_URL ||
+  process.env.BACKEND_URL ||
+  '';
+const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
+
 export async function GET() {
   try {
-    // ดึงข้อมูลจาก Admin API
-    const adminApiUrl = process.env.ADMIN_API_URL || 'http://localhost:5000';
-    
-    console.log(`Fetching categories from: ${adminApiUrl}/api/categories`);
-    
-    const response = await fetch(`${adminApiUrl}/api/categories`, {
-      cache: 'no-store',
-      headers: {
-        'Content-Type': 'application/json',
-      }
+    if (!BASE) throw new Error('BACKEND URL is missing');
+    const res = await fetch(`${BASE}/api/categories`, { cache: 'no-store' });
+    return new Response(await res.text(), {
+      status: res.status,
+      headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
     });
-    
-    if (!response.ok) {
-      console.error(`Admin API responded with status: ${response.status}`);
-      return NextResponse.json(null);
-    }
-    
-    const categories = await response.json();
-    console.log(`Fetched ${categories.length} categories from admin API:`, categories);
-    
-    // ถ้าไม่มีข้อมูล ส่ง mock data
-    if (!categories || categories.length === 0) {
-      return NextResponse.json(null);
-    }
-    
-    return NextResponse.json(categories);
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    return NextResponse.json(null);
+  } catch (e) {
+    console.error('Proxy /api/categories failed:', e);
+    return Response.json({ error: 'Upstream error' }, { status: 502 });
   }
 }
