@@ -327,3 +327,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
+
+const API_BASE_URL = 'https://backend-aquaroom.vercel.app';
+
+const login = async (credentials: any) => {
+  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(credentials),
+  });
+  return response.json();
+};

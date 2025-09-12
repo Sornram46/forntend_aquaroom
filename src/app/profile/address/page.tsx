@@ -19,6 +19,8 @@ interface Address {
   is_default: boolean;
 }
 
+const API_BASE_URL = "https://backend-aquaroom.vercel.app";
+
 function AddressPageContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
@@ -79,7 +81,7 @@ function AddressPageContent() {
   const fetchUserAddresses = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/user/addresses", {
+      const response = await fetch(`${API_BASE_URL}/api/user/addresses`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
         },
