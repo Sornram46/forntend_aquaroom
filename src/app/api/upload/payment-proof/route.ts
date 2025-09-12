@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
 
-// ใช้ Service Role Key แทน Anon Key สำหรับ Backend operations
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // เพิ่ม Service Role Key
-);
+export const runtime = 'nodejs'; // บังคับใช้ Node runtime
+
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabaseAdmin() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY; // server-only
+  if (!url || !key) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+  return createClient(url, key, { auth: { persistSession: false } });
+}
+
+// ตัวอย่างการใช้งานภายใน POST/handler
+// const supabase = getSupabaseAdmin();
+// await supabase.storage.from(process.env.SUPABASE_BUCKET || 'image_url').upload(path, file);
 
 export async function POST(request: NextRequest) {
   try {
@@ -74,6 +82,7 @@ export async function POST(request: NextRequest) {
     const fileBuffer = new Uint8Array(arrayBuffer);
 
     // อัปโหลดไปยัง Supabase Storage
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase.storage
       .from('payment-proofs')
       .upload(fileName, fileBuffer, {
