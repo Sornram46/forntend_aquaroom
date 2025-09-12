@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
+const BACKEND_URL = 'https://backend-aquaroom.vercel.app';
+
 export async function POST(request: NextRequest) {
   try {
     // รับข้อมูลเป็น JSON
@@ -169,73 +171,16 @@ export async function POST(request: NextRequest) {
 // GET method ยังคงเหมือนเดิม...
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.split(' ')[1];
+    const url = new URL(request.url);
+    const searchParams = url.searchParams.toString();
+    const backendUrl = `${BACKEND_URL}/api/orders${searchParams ? `?${searchParams}` : ''}`;
     
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: 'ไม่พบ token การยืนยันตัวตน' },
-        { status: 401 }
-      );
-    }
+    const response = await fetch(backendUrl);
+    const data = await response.json();
     
-    // ตรวจสอบ token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as {
-      userId: string;
-    };
-    
-    // เรียก Backend API แทนการ query ตรง
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
-    console.log('📋 Fetching orders from backend for user:', decoded.userId);
-    
-    const response = await fetch(`${backendUrl}/api/orders?user_id=${decoded.userId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      }
-    });
-
-    const contentType = response.headers.get('content-type');
-    
-    if (!response.ok) {
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await response.json();
-        return NextResponse.json(
-          { success: false, message: errorData.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลคำสั่งซื้อ' },
-          { status: response.status }
-        );
-      } else {
-        const textResponse = await response.text();
-        console.error('❌ Backend returned non-JSON error response:', textResponse);
-        return NextResponse.json(
-          { success: false, message: 'Backend API ไม่ตอบสนอง' },
-          { status: 502 }
-        );
-      }
-    }
-
-    if (!contentType || !contentType.includes('application/json')) {
-      const textResponse = await response.text();
-      console.error('❌ Backend returned non-JSON response for GET:', textResponse);
-      return NextResponse.json(
-        { success: false, message: 'Backend API ไม่ตอบสนอง (ไม่ใช่ JSON)' },
-        { status: 502 }
-      );
-    }
-
-    const backendData = await response.json();
-    
-    return NextResponse.json({
-      success: true,
-      orders: backendData.orders || backendData.data || []
-    });
-    
+    return Response.json(data, { status: response.status });
   } catch (error) {
-    console.error('❌ Error fetching orders:', error);
-    return NextResponse.json(
-      { success: false, message: 'เกิดข้อผิดพลาดในการโหลดข้อมูลคำสั่งซื้อ' },
-      { status: 500 }
-    );
+    console.error('Proxy error:', error);
+    return Response.json({ error: 'Failed to fetch orders' }, { status: 500 });
   }
 }

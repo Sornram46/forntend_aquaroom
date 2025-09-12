@@ -1,64 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+const BACKEND_URL = 'https://backend-aquaroom.vercel.app';
+
 export async function GET(request: NextRequest) {
   try {
-    // ดึงพารามิเตอร์ URL (ถ้ามี)
-    const searchParams = request.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
-    const category = searchParams.get('category');
-    const search = searchParams.get('search');
+    const url = new URL(request.url);
+    const searchParams = url.searchParams.toString();
+    const backendUrl = `${BACKEND_URL}/api/products${searchParams ? `?${searchParams}` : ''}`;
     
-    // สร้าง where clause
-    let whereClause = '';
-    const whereParams = [];
+    const response = await fetch(backendUrl);
+    const data = await response.json();
     
-    if (category) {
-      whereClause = 'WHERE c.name = $3';
-      whereParams.push(category);
-    }
-    
-    if (search) {
-      whereClause = whereClause 
-        ? `${whereClause} AND (p.name ILIKE $4 OR p.description ILIKE $4)` 
-        : 'WHERE (p.name ILIKE $3 OR p.description ILIKE $3)';
-      whereParams.push(`%${search}%`);
-    }
-    
-    // คำสั่ง SQL สำหรับดึงข้อมูลสินค้า
-    const productsQuery = `
-      SELECT p.id, p.name, p.description, p.price, p.image_url, p.stock,
-             c.name as category
-      FROM products p
-      LEFT JOIN product_categories pc ON p.id = pc.product_id
-      LEFT JOIN categories c ON pc.category_id = c.id
-      ${whereClause}
-      ORDER BY p.id DESC
-      LIMIT $1 OFFSET $2
-    `;
-    
-    // ประมวลผลคำสั่ง SQL
-    const result = await query(productsQuery, [limit, offset, ...whereParams]);
-    
-    // แปลงข้อมูลให้อยู่ในรูปแบบที่ต้องการ
-    const products = result.rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      price: parseFloat(row.price),
-      imageUrl: row.image_url,
-      category: row.category || 'ไม่ระบุหมวดหมู่',
-      stock: parseInt(row.stock) || 0
-    }));
-    
-    // ส่งข้อมูลกลับ
-    return NextResponse.json(products);
+    return Response.json(data, { status: response.status });
   } catch (error) {
-    console.error('Error fetching products:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch products' },
-      { status: 500 }
-    );
+    console.error('Proxy error:', error);
+    return Response.json({ error: 'Failed to fetch from backend' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    
+    const response = await fetch(`${BACKEND_URL}/api/products`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    
+    const data = await response.json();
+    return Response.json(data, { status: response.status });
+  } catch (error) {
+    console.error('Proxy error:', error);
+    return Response.json({ error: 'Failed to create product' }, { status: 500 });
   }
 }

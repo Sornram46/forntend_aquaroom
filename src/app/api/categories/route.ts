@@ -1,35 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+
+const BACKEND_URL = 'https://backend-aquaroom.vercel.app';
 
 export async function GET() {
   try {
-    // ดึงข้อมูลจาก Admin API
-    const adminApiUrl = process.env.ADMIN_API_URL || 'http://localhost:5000';
+    const response = await fetch(`${BACKEND_URL}/api/categories`);
+    const data = await response.json();
     
-    console.log(`Fetching categories from: ${adminApiUrl}/api/categories`);
-    
-    const response = await fetch(`${adminApiUrl}/api/categories`, {
-      cache: 'no-store',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-    
-    if (!response.ok) {
-      console.error(`Admin API responded with status: ${response.status}`);
-      return NextResponse.json(null);
-    }
-    
-    const categories = await response.json();
-    console.log(`Fetched ${categories.length} categories from admin API:`, categories);
-    
-    // ถ้าไม่มีข้อมูล ส่ง mock data
-    if (!categories || categories.length === 0) {
-      return NextResponse.json(null);
-    }
-    
-    return NextResponse.json(categories);
+    return Response.json(data, { status: response.status });
   } catch (error) {
-    console.error('Error fetching categories:', error);
-    return NextResponse.json(null);
+    console.error('Proxy error:', error);
+    return Response.json({ error: 'Failed to fetch categories' }, { status: 500 });
   }
 }

@@ -1,43 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+const BACKEND_URL = 'https://backend-aquaroom.vercel.app';
+
 // GET - ดึงข้อมูลการตั้งค่าหน้าแรก รวม Logo
 export async function GET() {
   try {
-    const result = await query(
-      'SELECT * FROM homepage_setting ORDER BY id DESC LIMIT 1',
-      []
-    );
-
-    if (result.rows.length === 0) {
-      // ส่งค่าเริ่มต้นสำหรับ logo
-      return NextResponse.json({
-        logo_url: null,
-        logo_alt_text: 'AquaRoom Logo',
-        logo_width: 120,
-        logo_height: 40,
-        dark_logo_url: null
-      });
-    }
-
-    const homepageData = result.rows[0];
+    const response = await fetch(`${BACKEND_URL}/api/homepage-setting`);
+    const data = await response.json();
     
-    // เพิ่มข้อมูล logo ให้ครบถ้วน
-    const responseData = {
-      ...homepageData,
-      // กำหนดค่าเริ่มต้นหากไม่มีข้อมูล
-      logo_alt_text: homepageData.logo_alt_text || 'AquaRoom Logo',
-      logo_width: homepageData.logo_width || 120,
-      logo_height: homepageData.logo_height || 40
-    };
-
-    return NextResponse.json(responseData);
+    return Response.json(data, { status: response.status });
   } catch (error) {
-    console.error('Database query error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch homepage setting' },
-      { status: 500 }
-    );
+    console.error('Proxy error:', error);
+    return Response.json({ error: 'Failed to fetch homepage settings' }, { status: 500 });
   }
 }
 
