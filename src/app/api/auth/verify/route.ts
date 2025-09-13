@@ -1,49 +1,27 @@
-import { NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-import { query } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: Request) {
+export const runtime = 'nodejs';
+
+const raw =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.ADMIN_API_URL ||
+  process.env.BACKEND_URL ||
+  '';
+const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
+
+export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('Authorization');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, message: 'ไม่พบ token' },
-        { status: 401 }
-      );
-    }
-    
-    const token = authHeader.split(' ')[1];
-    
-    // ตรวจสอบ token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as {
-      userId: string;
-      email: string;
-    };
-    
-    // ค้นหาผู้ใช้จากฐานข้อมูล
-    const findUserQuery = 'SELECT id, name, email, role, avatar FROM users WHERE id = $1';
-    const result = await query(findUserQuery, [decoded.userId]);
-    
-    if (result.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'ไม่พบข้อมูลผู้ใช้' },
-        { status: 404 }
-      );
-    }
-    
-    const user = result.rows[0];
-    
-    return NextResponse.json(
-      { success: true, user },
-      { status: 200 }
-    );
+    if (!BASE) throw new Error('BACKEND URL is missing');
+    const res = await fetch(`${BASE}/api/auth/verify`, {
+      headers: { authorization: request.headers.get('authorization') || '' },
+      cache: 'no-store',
+    });
+    return new Response(await res.text(), {
+      status: res.status,
+      headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
+    });
   } catch (error) {
-    console.error('Token verification error:', error);
-    
-    return NextResponse.json(
-      { success: false, message: 'Token ไม่ถูกต้องหรือหมดอายุ' },
-      { status: 401 }
-    );
+    console.error('Proxy GET /api/auth/verify failed:', error);
+    return NextResponse.json({ success: false, message: 'Upstream error' }, { status: 502 });
   }
 }

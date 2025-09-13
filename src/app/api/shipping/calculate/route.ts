@@ -1,62 +1,29 @@
 // src/app/api/shipping/calculate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+
+export const runtime = 'nodejs';
+
+const raw =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.ADMIN_API_URL ||
+  process.env.BACKEND_URL ||
+  '';
+const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
 
 export async function POST(request: NextRequest) {
   try {
-    const { items, subtotal } = await request.json();
-    
-    let totalShippingCost = 0;
-    let hasSpecialShipping = false;
-    
-    // ตรวจสอบแต่ละสินค้าในตะกร้า
-    for (const item of items) {
-      const productQuery = `
-        SELECT has_special_shipping, special_shipping_base, 
-               special_shipping_qty, special_shipping_extra
-        FROM products 
-        WHERE id = $1
-      `;
-      
-      const result = await query(productQuery, [item.id]);
-      
-      if (result.rows.length > 0) {
-        const product = result.rows[0];
-        
-        if (product.has_special_shipping) {
-          hasSpecialShipping = true;
-          
-          const baseShipping = parseFloat(product.special_shipping_base) || 80;
-          const qtyThreshold = product.special_shipping_qty || 4;
-          const extraCost = parseFloat(product.special_shipping_extra) || 10;
-          
-          if (item.quantity <= qtyThreshold) {
-            totalShippingCost += baseShipping;
-          } else {
-            const extraQty = item.quantity - qtyThreshold;
-            totalShippingCost += baseShipping + (extraQty * extraCost);
-          }
-        }
-      }
-    }
-    
-    // ถ้าไม่มีสินค้าพิเศษ ใช้ค่าจัดส่งปกติ
-    if (!hasSpecialShipping) {
-      totalShippingCost = subtotal >= 1000 ? 0 : 50;
-    }
-    
-    return NextResponse.json({
-      success: true,
-      shippingCost: totalShippingCost,
-      hasSpecialShipping,
-      freeShippingThreshold: hasSpecialShipping ? null : 1000
+    if (!BASE) throw new Error('BACKEND URL is missing');
+    const res = await fetch(`${BASE}/api/calculate-shipping`, {
+      method: 'POST',
+      headers: { 'content-type': request.headers.get('content-type') || 'application/json' },
+      body: await request.text(),
     });
-    
+    return new Response(await res.text(), {
+      status: res.status,
+      headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
+    });
   } catch (error) {
-    console.error('Error calculating shipping:', error);
-    return NextResponse.json(
-      { success: false, error: 'ไม่สามารถคำนวณค่าจัดส่งได้' },
-      { status: 500 }
-    );
+    console.error('Proxy POST /api/shipping/calculate failed:', error);
+    return NextResponse.json({ success: false, message: 'Upstream error' }, { status: 502 });
   }
 }

@@ -1,88 +1,28 @@
-import { NextResponse } from 'next/server';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { query } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(request: Request) {
+export const runtime = 'nodejs';
+
+const raw =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.ADMIN_API_URL ||
+  process.env.BACKEND_URL ||
+  '';
+const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
+
+export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
-    
-    // ตรวจสอบข้อมูล
-    if (!email || !password) {
-      return NextResponse.json(
-        { success: false, message: 'กรุณากรอกอีเมลและรหัสผ่าน' },
-        { status: 400 }
-      );
-    }
-    
-    // ค้นหาผู้ใช้จากอีเมล
-    const findUserQuery = 'SELECT * FROM users WHERE email = $1 AND auth_provider = $2';
-    const result = await query(findUserQuery, [email, 'local']);
-    
-    if (result.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' },
-        { status: 401 }
-      );
-    }
-    
-    const user = result.rows[0];
-    
-    // เปรียบเทียบรหัสผ่าน
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    
-    if (!isPasswordValid) {
-      // บันทึกการล็อกอินที่ล้มเหลว
-      await query(
-        'UPDATE users SET login_attempts = login_attempts + 1, last_failed_login = CURRENT_TIMESTAMP WHERE id = $1',
-        [user.id]
-      );
-      
-      return NextResponse.json(
-        { success: false, message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' },
-        { status: 401 }
-      );
-    }
-    
-    // รีเซ็ตการล็อกอินที่ล้มเหลว และอัปเดตเวลาล็อกอินล่าสุด
-    await query(
-      'UPDATE users SET login_attempts = 0, last_login = CURRENT_TIMESTAMP WHERE id = $1',
-      [user.id]
-    );
-    
-    // สร้าง JWT token
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '7d' }
-    );
-    
-    // สร้าง user object ที่จะส่งกลับไปยัง client (ไม่รวมรหัสผ่าน)
-    const userData = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar || null
-    };
-    
-    const res = NextResponse.json(
-      { success: true, message: 'เข้าสู่ระบบสำเร็จ', user: userData },
-      { status: 200 }
-    );
-    res.cookies.set('auth_token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7,
+    if (!BASE) throw new Error('BACKEND URL is missing');
+    const res = await fetch(`${BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'content-type': request.headers.get('content-type') || 'application/json' },
+      body: await request.text(),
     });
-    return res;
+    return new Response(await res.text(), {
+      status: res.status,
+      headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
+    });
   } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json(
-      { success: false, message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' },
-      { status: 500 }
-    );
+    console.error('Proxy POST /api/auth/login failed:', error);
+    return NextResponse.json({ success: false, message: 'Upstream error' }, { status: 502 });
   }
 }

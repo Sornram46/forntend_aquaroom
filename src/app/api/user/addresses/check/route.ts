@@ -1,49 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-import { query } from '@/lib/db';
+
+export const runtime = 'nodejs';
+
+const raw =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.ADMIN_API_URL ||
+  process.env.BACKEND_URL ||
+  '';
+const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.split(' ')[1];
-    
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: 'ไม่พบ token การยืนยันตัวตน' },
-        { status: 401 }
-      );
-    }
-    
-    // ตรวจสอบ token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as {
-      userId: string;
-    };
-    
-    // ตรวจสอบว่ามีที่อยู่ในระบบหรือไม่
-    const addressCountQuery = 'SELECT COUNT(*) as count FROM user_addresses WHERE user_id = $1';
-    const result = await query(addressCountQuery, [decoded.userId]);
-    
-    const addressCount = parseInt(result.rows[0].count);
-    const hasAddress = addressCount > 0;
-    
-    // ตรวจสอบว่ามีที่อยู่เริ่มต้นหรือไม่
-    let hasDefaultAddress = false;
-    if (hasAddress) {
-      const defaultAddressQuery = 'SELECT COUNT(*) as count FROM user_addresses WHERE user_id = $1 AND is_default = TRUE';
-      const defaultResult = await query(defaultAddressQuery, [decoded.userId]);
-      hasDefaultAddress = parseInt(defaultResult.rows[0].count) > 0;
-    }
-    
-    return NextResponse.json({
-      success: true,
-      hasAddress,
-      hasDefaultAddress,
-      addressCount
+    if (!BASE) throw new Error('BACKEND URL is missing');
+    const res = await fetch(`${BASE}/api/user/addresses/check`, {
+      headers: { authorization: request.headers.get('authorization') || '' },
+      cache: 'no-store',
+    });
+    return new Response(await res.text(), {
+      status: res.status,
+      headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
     });
   } catch (error) {
-    console.error('Error checking addresses:', error);
-    return NextResponse.json(
-      { success: false, message: 'เกิดข้อผิดพลาดในการตรวจสอบที่อยู่' },
-      { status: 500 }
-    );
+    console.error('Proxy GET /api/user/addresses/check failed:', error);
+    return NextResponse.json({ success: false, message: 'Upstream error' }, { status: 502 });
   }
 }

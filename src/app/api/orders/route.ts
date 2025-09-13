@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
+export const runtime = 'nodejs';
+
+const raw =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.ADMIN_API_URL ||
+  process.env.BACKEND_URL ||
+  '';
+const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
+
 export async function POST(request: NextRequest) {
   try {
     // รับข้อมูลเป็น JSON
@@ -100,12 +109,11 @@ export async function POST(request: NextRequest) {
     };
     
     // เรียก Backend API
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
-    
-    console.log('🔗 Calling backend API:', `${backendUrl}/api/orders`);
+  if (!BASE) throw new Error('BACKEND URL is missing');
+  console.log('🔗 Calling backend API:', `${BASE}/api/orders`);
     console.log('📤 Sending data:', orderData);
 
-    const response = await fetch(`${backendUrl}/api/orders`, {
+    const response = await fetch(`${BASE}/api/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -184,10 +192,10 @@ export async function GET(request: NextRequest) {
     };
     
     // เรียก Backend API แทนการ query ตรง
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    if (!BASE) throw new Error('BACKEND URL is missing');
     console.log('📋 Fetching orders from backend for user:', decoded.userId);
     
-    const response = await fetch(`${backendUrl}/api/orders?user_id=${decoded.userId}`, {
+    const response = await fetch(`${BASE}/api/orders?user_id=${decoded.userId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

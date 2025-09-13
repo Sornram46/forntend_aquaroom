@@ -1,51 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
-import jwt from 'jsonwebtoken';
+
+export const runtime = 'nodejs';
+
+const raw =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.ADMIN_API_URL ||
+  process.env.BACKEND_URL ||
+  '';
+const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.split(' ')[1];
-    
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: 'ไม่พบ token การยืนยันตัวตน' },
-        { status: 401 }
-      );
-    }
-    
-    // ตรวจสอบ token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as {
-      userId: string;
-    };
-    
-    // คำสั่ง SQL สำหรับดึงข้อมูลสถิติ
-    const statsQuery = `
-      SELECT 
-        COUNT(*) as total_orders,
-        SUM(CASE WHEN order_status IN ('processing', 'confirmed') THEN 1 ELSE 0 END) as pending_orders,
-        SUM(CASE WHEN order_status IN ('shipped', 'delivered') THEN 1 ELSE 0 END) as completed_orders,
-        COALESCE(SUM(total_amount), 0) as total_spent
-      FROM orders
-      WHERE user_id = $1
-    `;
-    
-    const result = await query(statsQuery, [decoded.userId]);
-    
-    return NextResponse.json({
-      success: true,
-      stats: {
-        totalOrders: parseInt(result.rows[0].total_orders) || 0,
-        pendingOrders: parseInt(result.rows[0].pending_orders) || 0,
-        completedOrders: parseInt(result.rows[0].completed_orders) || 0,
-        totalSpent: parseFloat(result.rows[0].total_spent) || 0
-      }
+    if (!BASE) throw new Error('BACKEND URL is missing');
+    const res = await fetch(`${BASE}/api/user/stats`, {
+      headers: { authorization: request.headers.get('authorization') || '' },
+      cache: 'no-store',
     });
-    
+    return new Response(await res.text(), {
+      status: res.status,
+      headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
+    });
   } catch (error) {
-    console.error('Error fetching user stats:', error);
-    return NextResponse.json(
-      { success: false, message: 'เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติผู้ใช้' },
-      { status: 500 }
-    );
+    console.error('Proxy GET /api/user/stats failed:', error);
+    return NextResponse.json({ success: false, message: 'Upstream error' }, { status: 502 });
   }
 }
