@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { fetchPopularProducts, toAbsoluteUrl } from '@/lib/db';
 
 interface Product {
   id: number;
@@ -13,44 +14,23 @@ interface Product {
   category: string;
 }
 
-export default function PopularProducts() {
-  const [products, setProducts] = useState<Product[]>([]);
+export default async function PopularProducts() {
+  const products = (await fetchPopularProducts()).map((p: any) => ({
+    ...p,
+    image_url: toAbsoluteUrl(p.image_url || p.image || ''),
+  }));
+
+  // ใช้ products แสดงผลรูปด้วย next/image
+
   const [loading, setLoading] = useState(true);
   const [hoveredProduct, setHoveredProduct] = useState<number | null>(null);
   const productsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    async function fetchPopularProducts() {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        
-        const response = await fetch('/api/products/popular', {
-          signal: controller.signal,
-          cache: 'no-store'
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch products');
-        }
-        
-        const data = await response.json();
-        setProducts(data);
-      } catch (error) {
-        console.error('Error fetching popular products:', error);
-        // กรณีมีข้อผิดพลาด ให้แสดงสินค้าว่างเปล่า
-        setProducts([]);
-      } finally {
-        // จำลองการโหลดข้อมูล
-        setTimeout(() => {
-          setLoading(false);
-        }, 800);
-      }
-    }
-
-    fetchPopularProducts();
+    // จำลองการโหลดข้อมูล
+    setTimeout(() => {
+      setLoading(false);
+    }, 800);
   }, []);
 
   if (loading) {

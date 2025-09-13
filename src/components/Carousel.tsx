@@ -3,32 +3,33 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fetchHomepageSettings, toAbsoluteUrl } from '@/lib/db';
 
 interface CarouselItem {
   id: number;
   title: string;
   subtitle: string;
   image: string;
-   buttonText?: string;  // เพิ่มฟิลด์นี้
-  buttonUrl?: string;   // เพิ่มฟิลด์นี้
+  buttonText?: string;
+  buttonUrl?: string;
 }
 
 interface HomepageSettings {
   carousel_1_title?: string;
   carousel_1_subtitle?: string;
   carousel_1_image?: string;
-  carousel_1_button_text?: string;  // เพิ่มฟิลด์นี้
-  carousel_1_button_url?: string;   // เพิ่มฟิลด์นี้
+  carousel_1_button_text?: string;
+  carousel_1_button_url?: string;
   carousel_2_title?: string;
   carousel_2_subtitle?: string;
   carousel_2_image?: string;
-  carousel_2_button_text?: string;  // เพิ่มฟิลด์นี้
-  carousel_2_button_url?: string;   // เพิ่มฟิลด์นี้
+  carousel_2_button_text?: string;
+  carousel_2_button_url?: string;
   carousel_3_title?: string;
   carousel_3_subtitle?: string;
   carousel_3_image?: string;
-  carousel_3_button_text?: string;  // เพิ่มฟิลด์นี้
-  carousel_3_button_url?: string;   // เพิ่มฟิลด์นี้
+  carousel_3_button_text?: string;
+  carousel_3_button_url?: string;
 }
 
 export default function Carousel() {
@@ -38,114 +39,91 @@ export default function Carousel() {
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
-    async function fetchCarouselData() {
+    async function load() {
       try {
-        const response = await fetch('/api/homepage-setting');
-        const data: HomepageSettings = await response.json();
-        
-        // สร้าง carousel items จากข้อมูลที่ดึงมา
+        const data: HomepageSettings = await fetchHomepageSettings();
+
         const items: CarouselItem[] = [];
-        
-        // เพิ่ม carousel items เฉพาะที่มีข้อมูล
+
         if (data.carousel_1_image && data.carousel_1_title) {
           items.push({
             id: 1,
             title: data.carousel_1_title,
             subtitle: data.carousel_1_subtitle || '',
-            image: data.carousel_1_image,
+            image: toAbsoluteUrl(data.carousel_1_image),
             buttonText: data.carousel_1_button_text || 'เริ่มช็อปปิ้ง',
-            buttonUrl: data.carousel_1_button_url || '/products'
+            buttonUrl: data.carousel_1_button_url || '/products',
           });
         }
-        
         if (data.carousel_2_image && data.carousel_2_title) {
           items.push({
             id: 2,
             title: data.carousel_2_title,
             subtitle: data.carousel_2_subtitle || '',
-            image: data.carousel_2_image,
+            image: toAbsoluteUrl(data.carousel_2_image),
             buttonText: data.carousel_2_button_text || 'เริ่มช็อปปิ้ง',
-            buttonUrl: data.carousel_2_button_url || '/products'
+            buttonUrl: data.carousel_2_button_url || '/products',
           });
         }
-        
         if (data.carousel_3_image && data.carousel_3_title) {
           items.push({
             id: 3,
             title: data.carousel_3_title,
             subtitle: data.carousel_3_subtitle || '',
-            image: data.carousel_3_image,
+            image: toAbsoluteUrl(data.carousel_3_image),
             buttonText: data.carousel_3_button_text || 'เริ่มช็อปปิ้ง',
-            buttonUrl: data.carousel_3_button_url || '/products'
+            buttonUrl: data.carousel_3_button_url || '/products',
           });
         }
-        
-        // ถ้าไม่มีข้อมูล carousel ให้ใช้ข้อมูลเริ่มต้น
+
+        // Fallback ถ้าไม่มีข้อมูลจาก backend
         if (items.length === 0) {
           items.push(
             {
               id: 1,
               title: 'ยินดีต้อนรับสู่ AquaRoom',
               subtitle: 'ร้านค้าออนไลน์ที่มีสินค้าคุณภาพดี',
-              image: '/images/carousel-1.jpg',
+              image: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=1920&q=80&auto=format&fit=crop',
               buttonText: 'เริ่มช็อปปิ้ง',
-              buttonUrl: '/products'
+              buttonUrl: '/products',
             },
             {
               id: 2,
               title: 'สินค้าคุณภาพเยี่ยม',
               subtitle: 'คัดสรรมาเป็นพิเศษเพื่อคุณ',
-              image: '/images/carousel-2.jpg',
+              image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1920&q=80&auto=format&fit=crop',
               buttonText: 'เริ่มช็อปปิ้ง',
-              buttonUrl: '/products'
+              buttonUrl: '/products',
             },
             {
               id: 3,
               title: 'จัดส่งรวดเร็ว',
               subtitle: 'ถึงมือคุณภายใน 1-3 วันทำการ',
-              image: '/images/carousel-3.jpg',
+              image: 'https://images.unsplash.com/photo-1515378960530-7c0da6231fb1?w=1920&q=80&auto=format&fit=crop',
               buttonText: 'เริ่มช็อปปิ้ง',
-              buttonUrl: '/products'
+              buttonUrl: '/products',
             }
           );
         }
-        
+
         setCarouselItems(items);
-      } catch (error) {
-        console.error('Error fetching carousel data:', error);
-        // ใช้ข้อมูลเริ่มต้น
+      } catch (err) {
+        console.error('Error fetching carousel data:', err);
         setCarouselItems([
           {
             id: 1,
             title: 'ยินดีต้อนรับสู่ AquaRoom',
             subtitle: 'ร้านค้าออนไลน์ที่มีสินค้าคุณภาพดี',
-            image: '/images/carousel-1.jpg',
+            image: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=1920&q=80&auto=format&fit=crop',
             buttonText: 'เริ่มช็อปปิ้ง',
-            buttonUrl: '/products'
+            buttonUrl: '/products',
           },
-          {
-            id: 2,
-            title: 'สินค้าคุณภาพเยี่ยม',
-            subtitle: 'คัดสรรมาเป็นพิเศษเพื่อคุณ',
-            image: '/images/carousel-2.jpg',
-            buttonText: 'เริ่มช็อปปิ้ง',
-            buttonUrl: '/products'
-          },
-          {
-            id: 3,
-            title: 'จัดส่งรวดเร็ว',
-            subtitle: 'ถึงมือคุณภายใน 1-3 วันทำการ',
-            image: '/images/carousel-3.jpg',
-            buttonText: 'เริ่มช็อปปิ้ง',
-            buttonUrl: '/products'
-          }
         ]);
       } finally {
         setLoading(false);
       }
     }
-
-    fetchCarouselData();
+    load();
   }, []);
 
   // Auto slide - เลื่อนอัตโนมัติทุก 5 วินาที
