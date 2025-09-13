@@ -1,27 +1,6 @@
-import { Pool } from 'pg';
-
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: parseInt(process.env.DB_PORT || '5432'),
-});
-export default pool; // เพิ่มบรรทัดนี้เพื่อ export pool เป็นค่า default
 
 
-export async function query(text: string, params?: any[]) {
-    try {
-      const start = Date.now();
-      const result = await pool.query(text, params);
-      const duration = Date.now() - start;
-      console.log('Query executed:', { text, duration, rows: result.rowCount });
-      return result;
-    } catch (error) {
-      console.error('Database query error:', error);
-      throw error;
-    }
-  }
+// หมายเหตุ: ห้ามเชื่อมต่อ DB ตรงจาก frontend
 
 const raw =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
@@ -29,10 +8,10 @@ const raw =
   process.env.BACKEND_URL ||
   'https://backend-aquaroom.vercel.app';
 
-// ให้แน่ใจว่ามี schema เสมอ
+// ให้แน่ใจว่ามี https:// เสมอ
 export const API_BASE_URL = raw.startsWith('http') ? raw : `https://${raw}`;
 
-// แปลง path เป็น absolute URL (กันเคส /uploads/... จาก backend)
+// แปลง path เป็น absolute URL (กันกรณี /uploads/...)
 export function toAbsoluteUrl(src?: string | null) {
   if (!src) return '';
   if (/^https?:\/\//i.test(src)) return src;

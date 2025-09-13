@@ -1,8 +1,6 @@
-'use client';
-
 import Link from 'next/link';
 import Image from 'next/image';
-import { fetchCategories } from '@/lib/db';
+import { fetchCategories, toAbsoluteUrl } from '@/lib/db';
 
 interface Category {
   id: number;
@@ -18,10 +16,7 @@ interface CategoriesSectionProps {
 
 export default async function CategoriesSection() {
   const categories = await fetchCategories();
-
-  if (!categories || categories.length === 0) {
-    return null;
-  }
+  if (!categories || categories.length === 0) return null;
 
   return (
     <section className="py-12 sm:py-16 lg:py-20 bg-gray-50 scroll-fade">
@@ -50,7 +45,7 @@ export default async function CategoriesSection() {
                 {/* Category Image */}
                 <div className="relative aspect-square overflow-hidden">
                   <Image
-                    src={category.image_url_cate || '/images/category-placeholder.jpg'}
+                    src={toAbsoluteUrl(category.image_url_cate) || 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=800&auto=format&fit=crop'}
                     alt={category.name}
                     fill
                     className="object-cover group-hover:scale-110 transition-transform duration-500"
