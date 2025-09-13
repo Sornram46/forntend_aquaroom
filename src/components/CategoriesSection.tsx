@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { fetchCategories } from '@/lib/db';
 
 interface Category {
   id: number;
@@ -15,7 +16,9 @@ interface CategoriesSectionProps {
   categories: Category[];
 }
 
-export default function CategoriesSection({ categories }: CategoriesSectionProps) {
+export default async function CategoriesSection() {
+  const categories = await fetchCategories();
+
   if (!categories || categories.length === 0) {
     return null;
   }

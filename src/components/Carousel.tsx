@@ -1,8 +1,6 @@
 'use client';
-
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
 import { fetchHomepageSettings, toAbsoluteUrl } from '@/lib/db';
 
 interface CarouselItem {

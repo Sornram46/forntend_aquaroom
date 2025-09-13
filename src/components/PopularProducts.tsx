@@ -6,18 +6,10 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { fetchPopularProducts, toAbsoluteUrl } from '@/lib/db';
 
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-  imageUrl: string | null;
-  category: string;
-}
-
 export default async function PopularProducts() {
   const products = (await fetchPopularProducts()).map((p: any) => ({
     ...p,
-    image_url: toAbsoluteUrl(p.image_url || p.image || ''),
+    image_url: toAbsoluteUrl(p.image_url || p.image),
   }));
 
   // ใช้ products แสดงผลรูปด้วย next/image
