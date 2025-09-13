@@ -31,6 +31,8 @@ const raw =
 
 export const API_BASE_URL = raw.startsWith('http') ? raw : `https://${raw}`;
 
+// ใช้ API_BASE_URL ต่อทุกที่ (categories/popular/homepage-setting)
+
 export async function fetchCategories() {
   try {
     const res = await fetch(`${API_BASE_URL}/api/categories`, { cache: 'no-store' });
