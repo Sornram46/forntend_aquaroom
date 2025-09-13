@@ -1,163 +1,53 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { NextRequest } from 'next/server';
+
+export const runtime = 'nodejs';
+
+const raw =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.ADMIN_API_URL ||
+  process.env.BACKEND_URL ||
+  '';
+const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> } // ✅ แก้ไข params type
+  context: { params: { id: string } }
 ) {
   try {
-    // ✅ ต้อง await params ก่อนใช้งาน
-    const resolvedParams = await params;
-    const id = resolvedParams.id;
-    
-    console.log('🔍 Getting product with ID:', id);
-    
-    // ตรวจสอบว่า ID เป็นตัวเลขหรือไม่
-    if (!id || isNaN(Number(id))) {
-      return NextResponse.json(
-        { error: 'Invalid product ID' },
-        { status: 400 }
-      );
-    }
-    
-    // ✅ SQL Query ที่รวมข้อมูลเพิ่มเติมทั้งหมดตาม Prisma Schema
-    const sqlQuery = `
-      SELECT p.id, p.name, p.description, p.price, p.image_url, p.image_url_two,
-             p.image_url_three, p.image_url_four, p.stock, p.is_popular,
-             p.updated_at, p.created_at,
-             
-             -- ข้อมูลการจัดส่งปกติ
-             p.shipping_cost_bangkok, p.shipping_cost_provinces, p.shipping_cost_remote,
-             p.free_shipping_threshold, p.delivery_time, p.shipping_notes, p.special_handling,
-             
-             -- ข้อมูลการจัดส่งพิเศษ
-             p.has_special_shipping, p.special_shipping_base, 
-             p.special_shipping_qty, p.special_shipping_extra, p.special_shipping_notes,
-             
-             -- ✅ ข้อมูลเพิ่มเติมสำหรับหน้าสินค้า (ตรงตาม Prisma Schema)
-             p.specifications, p.features, p.shipping_info, p.warranty_info, 
-             p.return_policy, p.care_instructions, p.dimensions, p.weight, 
-             p.material, p.country_origin,
-             
-             -- ข้อมูลหมวดหมู่
-             c.name as category, c.id as category_id
-      FROM products p
-      LEFT JOIN product_categories pc ON p.id = pc.product_id
-      LEFT JOIN categories c ON pc.category_id = c.id
-      WHERE p.id = $1
-    `;
-    
-    const result = await query(sqlQuery, [id]);
-    
-    if (result.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      );
-    }
-    
-    const productData = result.rows[0];
-    
-    const product = {
-      id: productData.id,
-      name: productData.name,
-      description: productData.description,
-      price: parseFloat(productData.price),
-      imageUrl: productData.image_url,
-      imageUrlTwo: productData.image_url_two,
-      imageUrlThree: productData.image_url_three,
-      imageUrlFour: productData.image_url_four,
-      category: productData.category || 'ไม่ระบุหมวดหมู่',
-      categoryId: productData.category_id,
-      stock: parseInt(productData.stock) || 0,
-      isPopular: productData.is_popular || false,
-      
-      // ข้อมูลการจัดส่งปกติ
-      shippingCostBangkok: productData.shipping_cost_bangkok ? parseFloat(productData.shipping_cost_bangkok) : 0,
-      shippingCostProvinces: productData.shipping_cost_provinces ? parseFloat(productData.shipping_cost_provinces) : 50,
-      shippingCostRemote: productData.shipping_cost_remote ? parseFloat(productData.shipping_cost_remote) : 100,
-      freeShippingThreshold: productData.free_shipping_threshold ? parseFloat(productData.free_shipping_threshold) : null,
-      deliveryTime: productData.delivery_time || '2-3 วัน',
-      shippingNotes: productData.shipping_notes,
-      specialHandling: productData.special_handling || false,
-      
-      // ข้อมูลการจัดส่งพิเศษ
-      hasSpecialShipping: productData.has_special_shipping || false,
-      specialShippingBase: productData.special_shipping_base ? parseFloat(productData.special_shipping_base) : null,
-      specialShippingQty: productData.special_shipping_qty ? parseInt(productData.special_shipping_qty) : null,
-      specialShippingExtra: productData.special_shipping_extra ? parseFloat(productData.special_shipping_extra) : null,
-      specialShippingNotes: productData.special_shipping_notes,
-      
-      // ✅ ข้อมูลเพิ่มเติมสำหรับหน้าสินค้า
-      specifications: productData.specifications,      // ข้อมูลคุณสมบัติ (HTML/JSON)
-      features: productData.features,                  // คุณสมบัติพิเศษ (HTML/JSON)
-      shippingInfo: productData.shipping_info,         // ข้อมูลการจัดส่งเพิ่มเติม (HTML)
-      warrantyInfo: productData.warranty_info,         // ข้อมูลการรับประกัน
-      returnPolicy: productData.return_policy,         // นโยบายการคืนสินค้า
-      careInstructions: productData.care_instructions, // วิธีการดูแล
-      dimensions: productData.dimensions,              // ขนาดสินค้า
-      weight: productData.weight,                      // น้ำหนัก
-      material: productData.material,                  // วัสดุ
-      countryOrigin: productData.country_origin,       // ประเทศผู้ผลิต
-      
-      // วันที่
-      createdAt: productData.created_at,
-      updatedAt: productData.updated_at
-    };
-    
-    console.log('✅ Product found:', product.name);
-    console.log('📊 Product has additional info:', {
-      hasSpecifications: !!product.specifications,
-      hasFeatures: !!product.features,
-      hasShippingInfo: !!product.shippingInfo,
-      hasWarrantyInfo: !!product.warrantyInfo,
-      hasDimensions: !!product.dimensions,
-      hasMaterial: !!product.material
+    if (!BASE) throw new Error('BACKEND URL is missing');
+    const { id } = context.params;
+    const res = await fetch(`${BASE}/api/products/${encodeURIComponent(id)}`, { cache: 'no-store' });
+    return new Response(await res.text(), {
+      status: res.status,
+      headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
     });
-    
-    return NextResponse.json(product);
-    
-  } catch (error) {
-    console.error('❌ Database query error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch product', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+  } catch (e) {
+    console.error('Proxy GET /api/products/[id] failed:', e);
+    return Response.json({ error: 'Upstream error' }, { status: 502 });
   }
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> } // ✅ แก้ไข params type
+  context: { params: { id: string } }
 ) {
   try {
-    // ✅ ต้อง await params ก่อนใช้งาน
-    const resolvedParams = await params;
-    const id = resolvedParams.id;
-    
-    console.log('📝 Updating product with ID:', id);
-    
-    // ตรวจสอบว่า ID เป็นตัวเลขหรือไม่
-    if (!id || isNaN(Number(id))) {
-      return NextResponse.json(
-        { error: 'Invalid product ID' },
-        { status: 400 }
-      );
-    }
-    
-    const body = await request.json();
-    console.log('📥 Update data received:', body);
-    
-    const { 
-      name, 
-      description, 
-      price, 
-      stock, 
-      categoryId, 
-      is_popular, 
-      image_url,
-      image_url_two,
-      image_url_three,
+    if (!BASE) throw new Error('BACKEND URL is missing');
+    const { id } = context.params;
+    const res = await fetch(`${BASE}/api/products/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: await request.text(),
+    });
+    return new Response(await res.text(), {
+      status: res.status,
+      headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
+    });
+  } catch (e) {
+    console.error('Proxy PUT /api/products/[id] failed:', e);
+    return Response.json({ error: 'Upstream error' }, { status: 502 });
+  }
+}
       image_url_four,
       
       // ข้อมูลการจัดส่งปกติ

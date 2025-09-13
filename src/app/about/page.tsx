@@ -1,14 +1,10 @@
 import Image from 'next/image';
+import { API_BASE_URL } from '@/lib/db';
 
-// ดึงข้อมูล about_setting จาก API
+// ดึงข้อมูล about_setting จาก API (ผ่าน proxy route)
 async function getAboutSetting() {
   try {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      (typeof window === 'undefined'
-        ? 'http://localhost:3000'
-        : window.location.origin);
-    const res = await fetch(`${baseUrl}/api/about-setting`, { cache: 'no-store' });
+    const res = await fetch(`${API_BASE_URL}/api/about-setting`, { cache: 'no-store' });
     if (!res.ok) return {};
     return await res.json();
   } catch {

@@ -8,6 +8,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import LoginModal from './LoginModal';
 import { usePathname } from 'next/navigation';
+import { toAbsoluteUrl } from '@/lib/db';
 
 type LogoSettings = {
   logo_url: string;
@@ -86,21 +87,21 @@ export default function Navbar() {
   }, [userMenuOpen]);
 
   useEffect(() => {
-    // ใช้ API homepage-setting (รวม logo)
+    // ใช้ API homepage-setting (รวม logo) ผ่าน proxy ที่เราเซ็ตไว้
     fetch('/api/homepage-setting')
       .then(res => res.json())
       .then(data => {
-        setLogoSettings(data);
+        // แปลง URL ให้เป็น absolute เผื่อ backend ส่ง path สั้น ๆ
+        const normalized: LogoSettings = {
+          logo_url: toAbsoluteUrl(data.logo_url),
+          dark_logo_url: toAbsoluteUrl(data.dark_logo_url),
+          logo_alt_text: data.logo_alt_text,
+          logo_width: data.logo_width,
+          logo_height: data.logo_height,
+        };
+        setLogoSettings(normalized);
       })
       .catch(err => console.error('Error loading logo:', err));
-    
-    // หรือใช้ API เฉพาะ logo
-    // fetch('/api/logo')
-    //   .then(res => res.json())
-    //   .then(data => {
-    //     setLogoSettings(data);
-    //   })
-    //   .catch(err => console.error('Error loading logo:', err));
   }, []);
 
   const cartItemCount = cartItems.length;

@@ -10,12 +10,8 @@ interface Category {
   products_count?: number;
 }
 
-interface CategoriesSectionProps {
-  categories: Category[];
-}
-
 export default async function CategoriesSection() {
-  const categories = await fetchCategories();
+  const categories: Category[] = await fetchCategories();
   if (!categories || categories.length === 0) return null;
 
   return (

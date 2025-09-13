@@ -3,132 +3,23 @@ import PopularProducts from '@/components/PopularProducts';
 import ScrollAnimation from '@/components/ScrollAnimation';
 import CategoriesSection from '@/components/CategoriesSection';
 import Link from 'next/link';
+import { fetchHomepageSettings } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';          // บังคับ SSR
 export const fetchCache = 'force-no-store';      // ถ้าต้อง no-store
 
-// ดึงข้อมูล homepage_setting จาก API (ฝั่ง Next.js app router)
+// ดึงข้อมูล homepage_setting จาก backend โดยตรง (เลี่ยง relative URL)
 async function getHomepageSetting() {
-  try {
-    // ใช้ absolute URL เพื่อให้ fetch ได้ทั้ง dev/prod
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      (typeof window === 'undefined'
-        ? 'http://localhost:3000'
-        : window.location.origin);
-    const res = await fetch(`${baseUrl}/api/homepage-setting`, { cache: 'no-store' });
-    if (!res.ok) return {};
-    return await res.json();
-  } catch {
-    return {};
-  }
+  return await fetchHomepageSettings();
 }
 
-// ดึงข้อมูลหมวดหมู่สินค้า
-async function getCategories() {
-  try {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      (typeof window === 'undefined'
-        ? 'http://localhost:3000'
-        : window.location.origin);
-    
-    console.log(`Fetching categories from: ${baseUrl}/api/categories`); // Debug log
-    
-    const res = await fetch('/api/categories', { 
-      cache: 'no-store',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!res.ok) {
-      console.error(`Categories API responded with status: ${res.status}`);
-      // ถ้า API ไม่ทำงาน ส่ง mock data
-      return [
-        {
-          id: 1,
-          name: 'อุปกรณ์คอมพิวเตอร์',
-          image_url_cate: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=500&h=300&fit=crop',
-          is_active: true,
-          products_count: 15
-        },
-        {
-          id: 2,
-          name: 'เครื่องใช้ไฟฟ้า',
-          image_url_cate: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=500&h=300&fit=crop',
-          is_active: true,
-          products_count: 8
-        },
-        {
-          id: 3,
-          name: 'อุปกรณ์กีฬา',
-          image_url_cate: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500&h=300&fit=crop',
-          is_active: true,
-          products_count: 12
-        },
-        {
-          id: 4,
-          name: 'เสื้อผ้าแฟชั่น',
-          image_url_cate: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=500&h=300&fit=crop',
-          is_active: true,
-          products_count: 25
-        }
-      ];
-    }
-    
-    const categories = await res.json();
-    console.log(`Received ${categories.length} categories:`, categories); // Debug log
-    
-    // กรองเฉพาะหมวดหมู่ที่เปิดใช้งาน
-    const activeCategories = categories.filter((category: any) => category.is_active);
-    console.log(`Active categories: ${activeCategories.length}`); // Debug log
-    
-    return activeCategories;
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    // ถ้าเกิดข้อผิดพลาด ส่ง mock data
-    return [
-      {
-        id: 1,
-        name: 'อุปกรณ์คอมพิวเตอร์',
-        image_url_cate: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=500&h=300&fit=crop',
-        is_active: true,
-        products_count: 15
-      },
-      {
-        id: 2,
-        name: 'เครื่องใช้ไฟฟ้า',
-        image_url_cate: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=500&h=300&fit=crop',
-        is_active: true,
-        products_count: 8
-      },
-      {
-        id: 3,
-        name: 'อุปกรณ์กีฬา',
-        image_url_cate: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500&h=300&fit=crop',
-        is_active: true,
-        products_count: 12
-      },
-      {
-        id: 4,
-        name: 'เสื้อผ้าแฟชั่น',
-        image_url_cate: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=500&h=300&fit=crop',
-        is_active: true,
-        products_count: 25
-      }
-    ];
-  }
-}
+// Categories แสดงผ่านคอมโพเนนต์ที่ไปดึงเอง ไม่ต้องดึงซ้ำที่นี่
 
 export default async function Home() {
-  const [homepage, categories] = await Promise.all([
-    getHomepageSetting(),
-    getCategories()
-  ]);
+  const homepage: any = await getHomepageSetting();
 
-  // Debug log
-  console.log('Categories in Home component:', categories);
+  // Debug: homepage loaded
+  console.log('Homepage settings loaded');
 
   return (
     <div className="min-h-screen">
@@ -147,8 +38,8 @@ export default async function Home() {
         </div>
       </section>
 
-        {/* Categories Section */}
-      <CategoriesSection categories={categories} />
+    {/* Categories Section */}
+    <CategoriesSection />
 
       {/* Why Choose Us Section */}
       <section className="py-16 sm:py-20 lg:py-24 bg-gradient-to-br from-gray-50 to-blue-50 scroll-fade">
