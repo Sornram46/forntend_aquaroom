@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { API_BASE_URL } from '@/lib/db';
+import { API_BASE_URL, toAbsoluteUrl } from '@/lib/db';
 
 // ดึงข้อมูล about_setting จาก API (ผ่าน proxy route)
 async function getAboutSetting() {
@@ -54,7 +54,7 @@ export default async function AboutPage() {
               <div className="relative h-96 lg:h-[500px] rounded-2xl overflow-hidden shadow-2xl">
                 {about.story_image_url ? (
                   <Image
-                    src={about.story_image_url}
+                    src={toAbsoluteUrl(about.story_image_url)}
                     alt="เกี่ยวกับเรา"
                     fill
                     style={{ objectFit: 'cover' }}

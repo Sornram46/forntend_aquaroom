@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
 import Swal from 'sweetalert2';
+import { toAbsoluteUrl } from '@/lib/db';
 
 interface OrderItem {
   id: number;
@@ -175,10 +177,11 @@ export default function OrdersPage() {
                       <li key={item.id} className="py-4 flex">
                         <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded-md overflow-hidden relative">
                           {item.image_url && (
-                            <img
-                              src={item.image_url}
+                            <Image
+                              src={toAbsoluteUrl(item.image_url)}
                               alt={item.product_name}
-                              className="w-full h-full object-cover"
+                              fill
+                              style={{ objectFit: 'cover' }}
                             />
                           )}
                         </div>

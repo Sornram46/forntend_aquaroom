@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import Swal from 'sweetalert2';
 import Link from 'next/link';
 import Image from 'next/image';
+import { toAbsoluteUrl } from '@/lib/db';
 
 interface OrderItem {
   id: number;
@@ -276,7 +277,7 @@ export default function OrderTrackingDetailPage() {
                   <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded-md overflow-hidden relative">
                     {item.image_url ? (
                       <Image 
-                        src={item.image_url} 
+                        src={toAbsoluteUrl(item.image_url)} 
                         alt={item.product_name} 
                         fill 
                         style={{ objectFit: 'cover' }}

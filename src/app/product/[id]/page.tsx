@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '@/contexts/CartContext';
+import { toAbsoluteUrl } from '@/lib/db';
 
 interface Product {
   id: number;
@@ -728,7 +729,7 @@ export default function ProductDetailPage() {
               >
                 {currentImage ? (
                   <Image 
-                    src={currentImage} 
+                    src={toAbsoluteUrl(currentImage)} 
                     alt={product.name} 
                     fill
                     style={{ objectFit: 'cover' }}
@@ -745,10 +746,10 @@ export default function ProductDetailPage() {
               <div className="mt-4 grid grid-cols-4 gap-2">
                 {/* แสดง thumbnails เฉพาะรูปที่มีข้อมูล */}
                 {[
-                  product.imageUrl,
-                  product.imageUrlTwo,
-                  product.imageUrlThree, 
-                  product.imageUrlFour
+                  toAbsoluteUrl(product.imageUrl || ''),
+                  toAbsoluteUrl(product.imageUrlTwo || ''),
+                  toAbsoluteUrl(product.imageUrlThree || ''), 
+                  toAbsoluteUrl(product.imageUrlFour || '')
                 ]
                   .filter(img => img !== null && img !== '')
                   .map((img, index) => (

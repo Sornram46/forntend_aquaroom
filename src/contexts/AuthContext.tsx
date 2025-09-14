@@ -286,7 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
       
-      const response = await fetch('/api/auth/update-profile', {
+      const response = await fetch('/api/user/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
