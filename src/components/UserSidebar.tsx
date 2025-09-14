@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import Image from 'next/image';
+import { toAbsoluteUrl } from '@/lib/db';
 
 export default function UserSidebar() {
   const pathname = usePathname();
@@ -100,9 +102,15 @@ export default function UserSidebar() {
       {/* ส่วนหัวโปรไฟล์ */}
       <div className="p-4 bg-indigo-50 border-b border-indigo-100">
         <div className="flex items-center">
-          <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xl overflow-hidden border-2 border-indigo-200">
+          <div className="relative h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xl overflow-hidden border-2 border-indigo-200">
             {user?.avatar ? (
-              <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+              <Image
+                src={toAbsoluteUrl(user.avatar)}
+                alt={user?.name || 'User'}
+                fill
+                sizes="48px"
+                className="object-cover"
+              />
             ) : (
               user?.name?.charAt(0).toUpperCase() || 'U'
             )}

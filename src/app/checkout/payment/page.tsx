@@ -7,6 +7,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import Swal from 'sweetalert2';
 import Image from 'next/image';
+import { toAbsoluteUrl } from '@/lib/db';
 import { validateSlipWithOCR, validateSlipQuick, SlipValidationResult } from '@/lib/slipValidator';
 
 interface Address {
@@ -754,35 +755,29 @@ const renderBankDetails = () => {
                 {/* ชื่อธนาคารพร้อม icon */}
                 <div className="flex items-center mb-3">
                   {account.bank_icon ? (
-                    <div className="flex-shrink-0 w-12 h-12 mr-3 bg-white rounded-lg border border-gray-200 p-2 flex items-center justify-center">
-                      <img 
-                        src={account.bank_icon} 
+                    <div className="relative flex-shrink-0 w-12 h-12 mr-3 bg-white rounded-lg border border-gray-200 p-2">
+                      <Image
+                        src={toAbsoluteUrl(account.bank_icon)}
                         alt={`${account.bank_name} Logo`}
-                        className="max-w-full max-h-full object-contain"
+                        fill
+                        sizes="48px"
+                        className="object-contain"
                         onError={(e) => {
                           console.error('❌ Failed to load bank icon:', {
                             bank: account.bank_name,
                             iconUrl: account.bank_icon,
                             error: 'Image load failed'
                           });
-                          
-                          // แทนที่ด้วย fallback icon
-                          const target = e.currentTarget as HTMLImageElement;
-                          target.style.display = 'none';
-                          const fallback = target.nextElementSibling as HTMLElement;
+                          const target = e.currentTarget as any;
+                          if (target?.style) target.style.display = 'none';
+                          const fallback = (target?.parentElement as HTMLElement)?.querySelector('.bank-fallback');
                           if (fallback) {
                             fallback.classList.remove('hidden');
                           }
                         }}
-                        onLoad={() => {
-                          console.log('✅ Bank icon loaded successfully:', {
-                            bank: account.bank_name,
-                            iconUrl: account.bank_icon
-                          });
-                        }}
                       />
                       {/* Fallback icon */}
-                      <div className="hidden w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
+                      <div className="bank-fallback hidden absolute inset-0 w-full h-full bg-gray-100 rounded flex items-center justify-center">
                         <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
