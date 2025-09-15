@@ -88,7 +88,7 @@ export default async function PopularProducts() {
                     <div className="relative h-48 bg-gray-100 overflow-hidden">
                       {product.imageUrl ? (
                         <Image
-                          src={product.imageUrl}
+                          src={toAbsoluteUrl(product.imageUrl)}
                           alt={product.name}
                           fill
                           style={{ objectFit: 'cover' }}

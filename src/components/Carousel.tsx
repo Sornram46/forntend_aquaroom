@@ -171,7 +171,7 @@ export default function Carousel() {
           className="absolute inset-0"
         >
           <Image
-            src={carouselItems[currentSlide].image}
+            src={toAbsoluteUrl(carouselItems[currentSlide].image)}
             alt={carouselItems[currentSlide].title}
             fill
             style={{ objectFit: 'cover' }}

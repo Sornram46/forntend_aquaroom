@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
+import { toAbsoluteUrl } from '@/lib/db';
 
 interface Product {
   id: number;
@@ -182,7 +183,7 @@ export default function ProductsPage() {
                       <div className="relative aspect-square bg-gray-100">
                         {product.imageUrl ? (
                           <Image
-                            src={product.imageUrl}
+                            src={toAbsoluteUrl(product.imageUrl)}
                             alt={product.name}
                             fill
                             style={{ objectFit: 'cover' }}

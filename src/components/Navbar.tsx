@@ -126,7 +126,7 @@ export default function Navbar() {
                   <>
                     {/* Light Mode Logo */}
                     <Image
-                      src={logoSettings.logo_url}
+                      src={toAbsoluteUrl(logoSettings.logo_url)}
                       alt={logoSettings.logo_alt_text || "AquaRoom Logo"}
                       width={logoSettings.logo_width || 120}
                       height={logoSettings.logo_height || 40}
@@ -137,7 +137,7 @@ export default function Navbar() {
                     {/* Dark Mode Logo */}
                     {logoSettings.dark_logo_url ? (
                       <Image
-                        src={logoSettings.dark_logo_url}
+                        src={toAbsoluteUrl(logoSettings.dark_logo_url)}
                         alt={logoSettings.logo_alt_text || "AquaRoom Logo"}
                         width={logoSettings.logo_width || 120}
                         height={logoSettings.logo_height || 40}
@@ -146,7 +146,7 @@ export default function Navbar() {
                       />
                     ) : (
                       <Image
-                        src={logoSettings.logo_url}
+                        src={toAbsoluteUrl(logoSettings.logo_url)}
                         alt={logoSettings.logo_alt_text || "AquaRoom Logo"}
                         width={logoSettings.logo_width || 120}
                         height={logoSettings.logo_height || 40}
@@ -261,7 +261,7 @@ export default function Navbar() {
                     <div className="h-8 w-8 rounded-full overflow-hidden border-2 border-indigo-500">
                       {user?.avatar ? (
                         <Image
-                          src={user.avatar}
+                          src={toAbsoluteUrl(user.avatar)}
                           alt="User profile"
                           width={32}
                           height={32}
