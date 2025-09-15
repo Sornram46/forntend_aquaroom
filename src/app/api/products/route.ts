@@ -6,8 +6,8 @@ const raw =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.ADMIN_API_URL ||
   process.env.BACKEND_URL ||
-  '';
-const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
+  'https://backend-aquaroom.vercel.app';
+const BASE = raw.startsWith('http') ? raw : `https://${raw}`;
 
 export async function GET(req: Request) {
   try {
