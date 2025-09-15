@@ -457,7 +457,7 @@ export default function PaymentPage() {
         const uploadFormData = new FormData();
         uploadFormData.append('file', paymentProof);
 
-        const uploadResponse = await fetch('/api/upload/payment-proof', {
+        const uploadResponse = await fetch(`${toAbsoluteUrl('/api/upload/payment-proof')}`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
