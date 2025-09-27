@@ -12,11 +12,16 @@ const raw =
   '';
 const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
 
-export async function GET(request: NextRequest, context: { params: { orderNumber: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ orderNumber: string }> }
+) {
+  // Await the params
+  const { orderNumber } = await params;
+  
   try {
     if (!BASE) throw new Error('BACKEND URL is missing');
     const token = request.headers.get('authorization') || '';
-    const { orderNumber } = context.params;
     const res = await fetch(`${BASE}/api/orders/track/${encodeURIComponent(orderNumber)}`, {
       headers: {
         accept: 'application/json',
