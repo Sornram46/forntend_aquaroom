@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+// Use the standard Web Request type for Next.js 15 route handlers
 
 export const runtime = 'nodejs';
 
@@ -10,12 +10,12 @@ const raw =
 const BASE = raw.startsWith('http') ? raw : `https://${raw}`;
 
 export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
     if (!BASE) throw new Error('BACKEND URL is missing');
-    const { id } = context.params;
+    const { id } = params;
     const res = await fetch(`${BASE}/api/products/${encodeURIComponent(id)}`, { cache: 'no-store' });
     return new Response(await res.text(), {
       status: res.status,
@@ -28,12 +28,12 @@ export async function GET(
 }
 
 export async function PUT(
-  request: NextRequest,
-  context: { params: { id: string } }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
     if (!BASE) throw new Error('BACKEND URL is missing');
-    const { id } = context.params;
+    const { id } = params;
     const res = await fetch(`${BASE}/api/products/${encodeURIComponent(id)}`, {
       method: 'PUT',
       headers: {
@@ -53,12 +53,12 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: NextRequest,
-  context: { params: { id: string } }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
     if (!BASE) throw new Error('BACKEND URL is missing');
-    const { id } = context.params;
+    const { id } = params;
     const res = await fetch(`${BASE}/api/products/${encodeURIComponent(id)}`, {
       method: 'DELETE',
       headers: { authorization: request.headers.get('authorization') || '' },
