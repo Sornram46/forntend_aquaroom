@@ -14,9 +14,10 @@ const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
 
 export async function GET(
   request: Request,
-  { params }: { params: { orderNumber: string } }
+  context: { params: Record<string, string | string[]> }
 ) {
-  const { orderNumber } = params;
+  const p = context.params?.orderNumber;
+  const orderNumber = Array.isArray(p) ? p[0] : p;
   
   try {
     if (!BASE) throw new Error('BACKEND URL is missing');

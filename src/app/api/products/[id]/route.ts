@@ -11,11 +11,12 @@ const BASE = raw.startsWith('http') ? raw : `https://${raw}`;
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Record<string, string | string[]> }
 ) {
   try {
     if (!BASE) throw new Error('BACKEND URL is missing');
-    const { id } = params;
+    const p = context.params?.id;
+    const id = Array.isArray(p) ? p[0] : p;
     const res = await fetch(`${BASE}/api/products/${encodeURIComponent(id)}`, { cache: 'no-store' });
     return new Response(await res.text(), {
       status: res.status,
@@ -29,11 +30,12 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Record<string, string | string[]> }
 ) {
   try {
     if (!BASE) throw new Error('BACKEND URL is missing');
-    const { id } = params;
+    const p = context.params?.id;
+    const id = Array.isArray(p) ? p[0] : p;
     const res = await fetch(`${BASE}/api/products/${encodeURIComponent(id)}`, {
       method: 'PUT',
       headers: {
@@ -54,11 +56,12 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Record<string, string | string[]> }
 ) {
   try {
     if (!BASE) throw new Error('BACKEND URL is missing');
-    const { id } = params;
+    const p = context.params?.id;
+    const id = Array.isArray(p) ? p[0] : p;
     const res = await fetch(`${BASE}/api/products/${encodeURIComponent(id)}`, {
       method: 'DELETE',
       headers: { authorization: request.headers.get('authorization') || '' },
