@@ -12,12 +12,11 @@ const raw =
   '';
 const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
 
-export async function GET(
-  request: Request,
-  context: { params: Record<string, string | string[]> }
-) {
-  const p = context.params?.orderNumber;
-  const orderNumber = Array.isArray(p) ? p[0] : p;
+export async function GET(request: Request) {
+  // Extract orderNumber from the URL path to avoid strict typing on the context argument
+  const url = new URL(request.url);
+  const segments = url.pathname.split('/').filter(Boolean);
+  const orderNumber = segments[segments.length - 1];
   
   try {
     if (!BASE) throw new Error('BACKEND URL is missing');
