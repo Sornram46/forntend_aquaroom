@@ -3,7 +3,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'backend-aquaroom.vercel.app' },
-      { protocol: 'https', hostname: 'ympuahmkqiwuvnrqbqqe.supabase.co' },
+      { protocol: 'https', hostname: 'qetuivlvofhxkwwatemu.supabase.co' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
     ],
