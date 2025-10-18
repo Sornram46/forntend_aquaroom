@@ -1,15 +1,24 @@
-
-
 // หมายเหตุ: ห้ามเชื่อมต่อ DB ตรงจาก frontend
+
+const defaultBase =
+  process.env.NODE_ENV === 'development'
+    ? 'http://localhost:5000'
+    : 'https://backend-aquaroom.vercel.app';
 
 const raw =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.ADMIN_API_URL ||
   process.env.BACKEND_URL ||
-  'https://backend-aquaroom.vercel.app';
+  defaultBase;
 
-// ให้แน่ใจว่ามี https:// เสมอ
-export const API_BASE_URL = raw.startsWith('http') ? raw : `https://${raw}`;
+// ให้แน่ใจว่ามี protocol ที่ถูกต้องเสมอ และใช้ http เมื่อเป็น localhost
+export const API_BASE_URL = (() => {
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  if (raw.startsWith('localhost') || raw.startsWith('127.0.0.1')) {
+    return `http://${raw}`;
+  }
+  return `https://${raw}`;
+})();
 
 // แปลง path เป็น absolute URL (กันกรณี /uploads/...)
 export function toAbsoluteUrl(src?: string | null) {
@@ -48,9 +57,35 @@ export async function fetchProducts() {
 
 export async function fetchPopularProducts() {
   try {
+    // Try dedicated endpoint first
     const res = await fetch(`${API_BASE_URL}/api/products/popular`, { cache: 'no-store' });
-    if (!res.ok) return [];
-    return await jsonOr(res, []);
+    if (res.ok) {
+      const data = await jsonOr<any>(res, []);
+      const arr = Array.isArray(data)
+        ? data
+        : Array.isArray((data as any)?.data)
+        ? (data as any).data
+        : Array.isArray((data as any)?.products)
+        ? (data as any).products
+        : [];
+      if (arr.length > 0) return arr;
+    }
+    // Fallback: fetch all and filter by popular flags
+    const allRes = await fetch(`${API_BASE_URL}/api/products`, { cache: 'no-store' });
+    if (!allRes.ok) return [];
+  const all = await jsonOr<any[]>(allRes, []);
+    const isPopular = (p: any) => {
+      const v = p?.is_poppular ?? p?.is_popular ?? p?.isPopular ?? p?.popular ?? p?.featured ?? p?.is_featured;
+      if (typeof v === 'boolean') return v;
+      if (typeof v === 'number') return v === 1;
+      if (typeof v === 'string') {
+        const s = v.trim().toLowerCase();
+        return s === '1' || s === 'true' || s === 'y' || s === 'yes' || s === 't';
+      }
+      return false;
+    };
+    const filtered = (all || []).filter(isPopular);
+    return filtered.length > 0 ? filtered : all;
   } catch (e) {
     console.error('Error fetching popular products:', e);
     return [];
@@ -66,4 +101,11 @@ export async function fetchHomepageSettings() {
     console.error('Error fetching homepage settings:', e);
     return {};
   }
+}
+
+// NOTE: Some server route files import `query` from '@/lib/db'.
+// This workspace is a frontend-only repo and doesn't have direct DB access here.
+// Export a stub `query` function so imports compile; it will throw if called at runtime.
+export async function query(_sql: string, _params?: any[]): Promise<any> {
+  throw new Error('Server-side database query called from frontend package. This environment does not support direct DB queries.');
 }

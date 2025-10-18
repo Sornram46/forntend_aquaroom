@@ -501,21 +501,36 @@ export default function PaymentPage() {
         },
         body: JSON.stringify(orderData)
       });
-      
-      // ตรวจสอบข้อผิดพลาดจาก API แบบละเอียด
+
       if (!response.ok) {
         const errorData = await response.json();
         console.error('API Error:', errorData);
         throw new Error(errorData.message || 'เกิดข้อผิดพลาดในการสร้างคำสั่งซื้อ');
       }
-      
+
       const apiResult = await response.json();
-      const orderNumber = apiResult.order.orderNumber;
+      console.log('Order API result:', apiResult);
+
+      // รองรับหลายรูปแบบของ response
+      const orderNumber =
+        apiResult?.order?.orderNumber ??
+        apiResult?.order?.order_number ??
+        apiResult?.data?.order?.orderNumber ??
+        apiResult?.data?.order?.order_number ??
+        apiResult?.orderNumber ??
+        apiResult?.order_number ??
+        apiResult?.data?.orderNumber ??
+        apiResult?.data?.order_number ??
+        null;
+
+      if (!orderNumber) {
+        throw new Error('ไม่พบหมายเลขคำสั่งซื้อจากเซิร์ฟเวอร์');
+      }
 
       // ล้างตะกร้าก่อนที่จะแสดง SweetAlert
       clearCart();
 
-      console.log('Order created successfully:', {orderNumber});
+      console.log('Order created successfully:', { orderNumber });
 
       Swal.fire({
         title: 'สั่งซื้อสำเร็จ!',
@@ -523,8 +538,11 @@ export default function PaymentPage() {
         icon: 'success',
         confirmButtonText: 'ดูรายการสั่งซื้อ',
       }).then((result) => {
+        const dest = `/orders/tracking/${encodeURIComponent(String(orderNumber).trim())}`;
         if (result.isConfirmed) {
-          window.location.href = `/orders/tracking/${orderNumber}`;
+          // ปิดโมดัลก่อนกัน overlay ค้าง
+          Swal.close();
+          router.push(dest);
         } else {
           router.push('/orders');
         }

@@ -102,7 +102,13 @@ export default function ProfilePage() {
       }
 
       const data = await response.json();
-      setStats(data.stats);
+      const stats = {
+        totalOrders: Number(data?.stats?.totalOrders ?? data?.ordersCount ?? 0),
+        pendingOrders: Number(data?.stats?.pendingOrders ?? 0),
+        completedOrders: Number(data?.stats?.completedOrders ?? 0),
+        totalSpent: Number(data?.stats?.totalSpent ?? data?.totalSpent ?? 0),
+      };
+      setStats(stats);
     } catch (error) {
       console.error('Error fetching user stats:', error);
     }

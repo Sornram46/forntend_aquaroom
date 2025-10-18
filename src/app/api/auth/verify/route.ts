@@ -1,27 +1,43 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { API_BASE_URL } from '@/lib/db';
 
-export const runtime = 'nodejs';
-
-const raw =
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.ADMIN_API_URL ||
-  process.env.BACKEND_URL ||
-  '';
-const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
-
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
-    if (!BASE) throw new Error('BACKEND URL is missing');
-    const res = await fetch(`${BASE}/api/auth/verify`, {
-      headers: { authorization: request.headers.get('authorization') || '' },
-      cache: 'no-store',
+    const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { success: false, message: 'ไม่พบ token' },
+        { status: 401 }
+      );
+    }
+
+    const backendUrl = `${API_BASE_URL.replace(/\/$/, '')}/api/auth/verify`;
+    const backendResponse = await fetch(backendUrl, {
+      method: 'GET',
+      headers: { Authorization: authHeader },
     });
-    return new Response(await res.text(), {
-      status: res.status,
-      headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
-    });
+
+    const data = await backendResponse
+      .json()
+      .catch(() => ({ success: false, message: 'ไม่สามารถอ่านข้อมูลจากเซิร์ฟเวอร์ได้' }));
+
+    if (!backendResponse.ok || data?.success === false) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: data?.message || 'Token ไม่ถูกต้องหรือหมดอายุ',
+        },
+        { status: backendResponse.status || 401 }
+      );
+    }
+
+    return NextResponse.json(data, { status: backendResponse.status || 200 });
   } catch (error) {
-    console.error('Proxy GET /api/auth/verify failed:', error);
-    return NextResponse.json({ success: false, message: 'Upstream error' }, { status: 502 });
+    console.error('Verify proxy error:', error);
+    return NextResponse.json(
+      { success: false, message: 'เกิดข้อผิดพลาดในการตรวจสอบ token' },
+      { status: 500 }
+    );
   }
 }

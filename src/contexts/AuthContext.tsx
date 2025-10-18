@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import Swal from 'sweetalert2';
 
 // นิยามรูปแบบข้อมูลผู้ใช้
@@ -19,7 +19,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
-  googleLogin: (credential: string) => Promise<boolean>;
+  googleLogin: () => void;
   logout: () => Promise<void>;
   updateUserProfile: (userData: Partial<User>) => Promise<boolean>;
   refreshToken: () => Promise<boolean>; // เพิ่มฟังก์ชันนี้
@@ -45,33 +45,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !!user;
 
   // ตรวจสอบและรีเฟรช token
-  const refreshToken = async (): Promise<boolean> => {
+  const refreshToken = useCallback(async (): Promise<boolean> => {
     try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) return false;
+      // include stored token in Authorization header
+      const storedToken = localStorage.getItem('auth_token') || getCookie('ar_session') || getCookie('ar_token') || '';
+      const headers: Record<string, string> = {};
+      if (storedToken) headers['Authorization'] = `Bearer ${storedToken}`;
 
-      const response = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
+      const res = await fetch('/api/auth/refresh', { method: 'POST', headers, credentials: 'include' });
+      if (res.status === 404) return false; // ไม่มี endpoint -> ให้ logout
+      if (!res.ok) return false;
+      const j = await res.json();
+      const newToken = j?.token || j?.accessToken || '';
+      const returnedUser = j?.user || j?.data?.user || null;
+      if (newToken) {
+        localStorage.setItem('auth_token', newToken);
+        if (returnedUser) {
+          try { localStorage.setItem('ar_user', JSON.stringify(returnedUser)); } catch {}
+          setUser(returnedUser);
         }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.token) {
-          localStorage.setItem('auth_token', data.token);
-          setUser(data.user);
-          return true;
-        }
+        return true;
       }
-      
       return false;
-    } catch (error) {
-      console.error('Token refresh failed:', error);
+    } catch (e) {
+      console.error('refreshToken failed', e);
       return false;
     }
-  };
+  }, []);
 
   // โหลดข้อมูลผู้ใช้จาก token
   useEffect(() => {
@@ -132,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     loadUserFromToken();
-  }, []);
+  }, [refreshToken]);
 
   // ตั้งค่า interval เพื่อตรวจสอบ token แบบ auto
   useEffect(() => {
@@ -167,10 +167,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('Token check failed:', error);
         }
       }
-    }, 5 * 60 * 1000); // ตรวจสอบทุก 5 นาที
+    }, 30 * 60 * 1000); // เปลี่ยนเป็นตรวจสอบทุก 30 นาที
 
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, refreshToken]);
 
   // ฟังก์ชันล็อกอิน
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -230,35 +230,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  // ฟังก์ชัน Google Login
-  const googleLogin = async (credential: string): Promise<boolean> => {
-    setIsLoading(true);
-    
-    try {
-      const response = await fetch('/api/auth/google', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        console.error('Google login failed:', data.message);
-        return false;
-      }
-      
-      // บันทึกข้อมูลผู้ใช้และ token
-      setUser(data.user);
-      localStorage.setItem('auth_token', data.token);
-      
-      return true;
-    } catch (error) {
-      console.error('Google login error:', error);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
+  // ฟังก์ชัน Google Login: แนบ next ให้กลับมาหน้าเดิม/ตะกร้า
+  const googleLogin = () => {
+    const next = encodeURIComponent('/cart');
+    window.location.assign(`/api/auth/google?next=${next}`);
   };
 
   // ฟังก์ชันล็อกเอาท์
@@ -271,6 +246,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Logout error:', error);
     } finally {
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('ar_token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('ar_user');
+      document.cookie = 'ar_session=; Max-Age=0; path=/';
+      document.cookie = 'ar_token=; Max-Age=0; path=/';
+      document.cookie = 'ar_user=; Max-Age=0; path=/';
       setUser(null);
     }
   };
@@ -310,6 +294,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   };
+
+  // helper อ่าน cookie
+  function getCookie(name: string) {
+    if (typeof document === 'undefined') return '';
+    const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  // บูตจาก cookie/localStorage หลังโหลดครั้งแรก (แก้ setIsAuthenticated ที่ไม่มี)
+  useEffect(() => {
+    try {
+      const token =
+        getCookie('ar_session') ||
+        getCookie('ar_token') ||
+        localStorage.getItem('auth_token') ||
+        localStorage.getItem('authToken') ||
+        localStorage.getItem('token') ||
+        localStorage.getItem('accessToken') ||
+        '';
+      const userJson =
+        getCookie('ar_user') ||
+        localStorage.getItem('ar_user') ||
+        localStorage.getItem('user') ||
+        '';
+      const u = userJson ? JSON.parse(userJson) : null;
+
+      if (token) {
+        // sync ให้ flow verify ด้านบนใช้ได้
+        localStorage.setItem('auth_token', token);
+        setUser(u);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   return (
     <AuthContext.Provider value={{

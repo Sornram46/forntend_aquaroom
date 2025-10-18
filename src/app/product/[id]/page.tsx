@@ -17,6 +17,7 @@ interface Product {
   imageUrlTwo: string | null;
   imageUrlThree: string | null;
   imageUrlFour: string | null;
+  images?: string[];
   category: string;
   stock: number;
   
@@ -31,7 +32,7 @@ interface Product {
   weight?: string;
   material?: string;
   countryOrigin?: string;
-
+  shippingCost?: number;
    // ✅ เพิ่มข้อมูลการจัดส่งจากฐานข้อมูล
   hasSpecialShipping?: boolean;
   specialShippingBase?: number;
@@ -61,9 +62,104 @@ export default function ProductDetailPage() {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('details'); // เพิ่ม state สำหรับแท็บ
-  
+  const [activeTab, setActiveTab] = useState('details');
+
+  // ✅ ค่าจัดส่งและสถานะคำนวณ
+  const [shippingCost, setShippingCost] = useState<number | null>(null);
+  const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
+
+  // คำนวณในฝั่ง client เป็น fallback ถ้า API ล้มเหลว
+  const computeShippingCost = (p: Product, qty: number): number => {
+    if (!p) return 0;
+    if (typeof p.freeShippingThreshold === 'number' && p.price * qty >= p.freeShippingThreshold) return 0;
+    if (p.hasSpecialShipping) {
+      const base = Number(p.specialShippingBase ?? 0);
+      const threshold = Number(p.specialShippingQty ?? 0);
+      const extra = Number(p.specialShippingExtra ?? 0);
+      if (qty <= threshold) return base;
+      return base + Math.max(0, qty - threshold) * extra;
+    }
+    if (typeof p.shippingCostProvinces === 'number') return p.shippingCostProvinces!;
+    if (typeof p.shippingCostBangkok === 'number') return p.shippingCostBangkok!;
+    if (typeof p.shippingCostRemote === 'number') return p.shippingCostRemote!;
+    return 50;
+  };
+
+  // เรียก API ดึงค่าจัดส่ง (ใช้ NEXT_PUBLIC_API_BASE_URL ถ้ามี)
+  const calculateShippingViaAPI = async (p: Product, qty: number, signal?: AbortSignal): Promise<number | null> => {
+    const base = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
+    const url = `${base}/api/shipping/calculate`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        productId: p.id,
+        quantity: qty,
+        // เติมพารามิเตอร์อื่นที่แบ็กเอนด์รองรับได้ เช่น เขต/จังหวัด/รหัสไปรษณีย์
+        // region: 'TH', postalCode: '10110'
+      }),
+      signal,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    // รองรับรูปแบบคีย์ได้หลายแบบ
+    const apiCost =
+      (typeof data?.cost === 'number' && data.cost) ??
+      (typeof data?.shippingCost === 'number' && data.shippingCost) ??
+      (typeof data?.total === 'number' && data.total) ??
+      (typeof data?.data?.cost === 'number' && data.data.cost) ??
+      null;
+    return typeof apiCost === 'number' ? apiCost : null;
+  };
+
+  // คำนวณ/ดึงค่าจัดส่งเมื่อ product หรือ quantity เปลี่ยน
+  useEffect(() => {
+    if (!product) return;
+    const ctrl = new AbortController();
+    (async () => {
+      try {
+        setIsCalculatingShipping(true);
+        // เรียก API ก่อน
+        const apiCost = await calculateShippingViaAPI(product, quantity, ctrl.signal);
+        if (typeof apiCost === 'number') {
+          setShippingCost(apiCost);
+          return;
+        }
+        // ถ้า API ไม่ส่งค่าที่ใช้ได้ ให้ fallback local
+        const fallback = computeShippingCost(product, quantity);
+        setShippingCost(fallback);
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          console.error('shipping calculate error:', err);
+          setShippingCost(computeShippingCost(product, quantity));
+        }
+      } finally {
+        if (!ctrl.signal.aborted) setIsCalculatingShipping(false);
+      }
+    })();
+    return () => ctrl.abort();
+  }, [product, quantity]);
+
   const { addToCart } = useCart();
+
+  // Safe number formatter to avoid calling toLocaleString on undefined/null
+  const formatCurrency = (value: unknown) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return '0';
+    try {
+      return n.toLocaleString();
+    } catch {
+      return `${n}`;
+    }
+  };
+
+  function isSupabasePublic(url?: string | null) {
+    if (!url) return false;
+    try {
+      const u = new URL(url);
+      return u.hostname.endsWith('.supabase.co') && u.pathname.startsWith('/storage/v1/object/public/');
+    } catch { return false; }
+  }
 
   useEffect(() => {
     async function fetchProductDetails() {
@@ -80,11 +176,30 @@ export default function ProductDetailPage() {
         
         const data = await response.json();
         setProduct(data);
-        // ตั้งค่ารูปเริ่มต้นเป็นรูปแรก
-        setCurrentImage(data.imageUrl);
+        // ใช้ imageUrl ก่อน ถ้าไม่มีใช้ภาพแรกจาก images
+        const firstImg = (data.imageUrl || (Array.isArray(data.images) ? data.images[0] : '')) || null;
+        setCurrentImage(firstImg ? toAbsoluteUrl(firstImg) : null);
         
         // โหลดสินค้าที่เกี่ยวข้อง (สินค้าในหมวดหมู่เดียวกัน)
-        fetchRelatedProducts(data.category);
+        const deriveCategoryKey = (p: any): string | null => {
+          if (!p) return null;
+          const nested = (p.category && (p.category.slug || p.category.name)) || null;
+          const candidates = [
+            p.category,
+            p.category_slug,
+            p.categorySlug,
+            p.categoryName,
+            p.category_name,
+            p.seo_slug,
+            nested,
+          ];
+          const found = candidates.find((v) => typeof v === 'string' && v.trim().length > 0);
+          return found ? String(found) : null;
+        };
+        const catKey = deriveCategoryKey(data);
+        if (catKey) {
+          fetchRelatedProducts(catKey);
+        }
       } catch (err) {
         console.error('Error fetching product:', err);
         setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ');
@@ -94,6 +209,7 @@ export default function ProductDetailPage() {
     }
     
     async function fetchRelatedProducts(category: string) {
+      if (!category || typeof category !== 'string') return;
       try {
         // เรียกใช้ API เพื่อดึงสินค้าในหมวดหมู่เดียวกัน
         const response = await fetch(`/api/products?category=${encodeURIComponent(category)}`);
@@ -439,25 +555,13 @@ export default function ProductDetailPage() {
                   <h4 className="font-medium text-indigo-900">💰 ค่าจัดส่ง</h4>
                 </div>
                 <ul className="space-y-2 text-gray-700">
-                  <li className="flex justify-between items-center">
-                    <span>🏢 กรุงเทพมหานคร:</span>
-                    <span className="font-bold text-indigo-600">
-                      {product?.shippingCostBangkok ? `${product.shippingCostBangkok} บาท` : 'ฟรี'}
+                 <li className="flex justify-between items-center">
+                    <span>🚚 ค่าจัดส่งมาตรฐาน:</span>
+                    <span className="font-bold text-gray-900">
+                      {Number(shippingCost ?? 0) === 0 ? 'ฟรี' : `${formatCurrency(shippingCost)} บาท`}
                     </span>
                   </li>
-                  <li className="flex justify-between items-center">
-                    <span>🏘️ ต่างจังหวัด:</span>
-                    <span className="font-bold text-blue-600">{product?.shippingCostProvinces || 50} บาท</span>
-                  </li>
-                  <li className="flex justify-between items-center">
-                    <span>🏔️ พื้นที่ห่างไกล:</span>
-                    <span className="font-bold text-purple-600">{product?.shippingCostRemote || 100} บาท</span>
-                  </li>
-                  {product?.freeShippingThreshold && (
-                    <li className="text-green-600 font-medium bg-green-50 p-2 rounded border border-green-200">
-                      🎉 จัดส่งฟรีเมื่อซื้อครบ {product.freeShippingThreshold.toLocaleString()} บาท
-                    </li>
-                  )}
+                
                 </ul>
               </div>
               
@@ -503,9 +607,7 @@ export default function ProductDetailPage() {
                 🚚 วิธีการจัดส่ง
               </h4>
               <ul className="space-y-2 text-gray-700 text-sm">
-                <li>📦 Kerry Express</li>
                 <li>📦 Thailand Post (EMS)</li>
-                <li>📦 Flash Express</li>
                 <li>🏪 รับที่หน้าร้าน (ฟรี)</li>
               </ul>
             </div>
@@ -728,12 +830,13 @@ export default function ProductDetailPage() {
                 onClick={() => setLightboxOpen(true)}
               >
                 {currentImage ? (
-                  <Image 
-                    src={toAbsoluteUrl(currentImage)} 
-                    alt={product.name} 
+                  <Image
+                    src={toAbsoluteUrl(currentImage)}
+                    alt={product.name}
                     fill
                     style={{ objectFit: 'cover' }}
                     className="hover:scale-105 transition-transform duration-500"
+                    unoptimized={isSupabasePublic(currentImage)}
                   />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-gray-100 to-gray-200">
@@ -744,32 +847,32 @@ export default function ProductDetailPage() {
               
               {/* Thumbnails รูปภาพย่อยด้านล่าง */}
               <div className="mt-4 grid grid-cols-4 gap-2">
-                {/* แสดง thumbnails เฉพาะรูปที่มีข้อมูล */}
-                {[
-                  toAbsoluteUrl(product.imageUrl || ''),
-                  toAbsoluteUrl(product.imageUrlTwo || ''),
-                  toAbsoluteUrl(product.imageUrlThree || ''), 
-                  toAbsoluteUrl(product.imageUrlFour || '')
-                ]
-                  .filter(img => img !== null && img !== '')
-                  .map((img, index) => (
-                    <div 
-                      key={index}
-                      onClick={() => setCurrentImage(img)}
-                      className={`
-                        relative h-16 rounded-md overflow-hidden cursor-pointer border-2
-                        ${currentImage === img ? 'border-indigo-500' : 'border-transparent'}
-                        hover:opacity-90 transition-all
-                      `}
-                    >
-                      <Image 
-                        src={img as string} 
-                        alt={`${product.name} - รูป ${index + 1}`} 
-                        fill
-                        style={{ objectFit: 'cover' }}
-                      />
-                    </div>
-                  ))}
+                {(() => {
+                  const list = (Array.isArray(product.images) && product.images.length
+                    ? product.images
+                    : [product.imageUrl, product.imageUrlTwo, product.imageUrlThree, product.imageUrlFour]
+                  ).filter(Boolean) as string[];
+                  return list.map((raw, index) => {
+                    const img = toAbsoluteUrl(raw);
+                    return (
+                      <div
+                        key={index}
+                        onClick={() => setCurrentImage(img)}
+                        className={`relative h-16 rounded-md overflow-hidden cursor-pointer border-2 ${
+                          currentImage === img ? 'border-indigo-500' : 'border-transparent'
+                        } hover:opacity-90 transition-all`}
+                      >
+                        <Image
+                          src={img}
+                          alt={`${product.name} - รูป ${index + 1}`}
+                          fill
+                          style={{ objectFit: 'cover' }}
+                          unoptimized={isSupabasePublic(img)}
+                        />
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
             
@@ -797,7 +900,7 @@ export default function ProductDetailPage() {
                 <h1 className="mt-4 text-2xl md:text-3xl font-bold text-gray-900">{product.name}</h1>
                 
                 <p className="mt-2 text-3xl font-bold text-indigo-600">
-                  {product.price.toLocaleString()} บาท
+                  {formatCurrency(product?.price)} บาท
                 </p>
                 
                 <div className="mt-6">
@@ -809,21 +912,17 @@ export default function ProductDetailPage() {
                   {/* แสดงสถานะจำนวนในคลัง */}
                   <div className="mt-4 flex items-center">
                     <span className="text-sm font-medium text-gray-700 mr-2">สถานะสินค้า:</span>
-                    {product.stock > 0 ? (
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        product.stock > 10 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {product.stock > 10 
-                          ? 'มีสินค้า' 
-                          : `เหลือเพียง ${product.stock} ชิ้น`}
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
-                        สินค้าหมด
-                      </span>
-                    )}
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        product.stock > 10
+                          ? 'bg-green-100 text-green-800'
+                          : product.stock > 0
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
+                      }`}
+                    >
+                      คงเหลือ {Number(product.stock).toLocaleString()} ชิ้น
+                    </span>
                   </div>
                 </div>
                 
@@ -1000,7 +1099,7 @@ export default function ProductDetailPage() {
                     <div className="p-4">
                       <h3 className="font-medium text-gray-900 hover:text-indigo-600">{relatedProduct.name}</h3>
                       <p className="mt-1 text-gray-500">{relatedProduct.category}</p>
-                      <p className="mt-2 font-bold text-indigo-600">{relatedProduct.price.toLocaleString()} บาท</p>
+                      <p className="mt-2 font-bold text-indigo-600">{formatCurrency(relatedProduct?.price)} บาท</p>
                     </div>
                   </Link>
                 </motion.div>
@@ -1029,8 +1128,8 @@ export default function ProductDetailPage() {
             >
               {currentImage && (
                 <Image
-                  src={currentImage}
-                  alt={product.name}
+                  src={toAbsoluteUrl(currentImage)}
+                  alt={product?.name || 'product'}
                   width={1200}
                   height={800}
                   style={{ objectFit: 'contain' }}

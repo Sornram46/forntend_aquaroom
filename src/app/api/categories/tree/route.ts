@@ -20,34 +20,35 @@ function toSlug(name: string) {
 }
 
 function mapCategory(c: any): any {
+  const children = Array.isArray(c?.children) ? c.children.map(mapCategory) : [];
   return {
     id: Number(c?.id ?? c?.category_id ?? 0),
     name: String(c?.name ?? c?.title ?? 'หมวดหมู่'),
     slug: String(c?.slug ?? c?.seo_slug ?? toSlug(c?.name ?? '')).toLowerCase(),
     image_url: c?.image_url ?? c?.image_url_cate ?? c?.icon ?? null,
     products_count: Number(c?.products_count ?? c?._count?.product_categories ?? 0),
-    children: Array.isArray(c?.children) ? c.children.map(mapCategory) : [],
+    children,
   };
 }
 
 export async function GET(_req: NextRequest) {
   const BASE = pickBase();
-  try {
-    const res = await fetch(`${BASE}/api/categories`, {
-      headers: { accept: 'application/json' },
-      cache: 'no-store',
-    });
-    const raw = await res.json().catch(() => null);
-    const list = Array.isArray(raw) ? raw : (raw.categories ?? raw.data?.categories ?? raw.data ?? []);
-    const normalized = Array.isArray(list) ? list.map(mapCategory) : [];
-    return NextResponse.json({ success: true, categories: normalized }, { status: res.ok ? 200 : res.status });
-  } catch {
-    // fallback ไป tree proxy
-    const alt = await fetch(`${BASE}/api/categories/tree`).catch(() => null as any);
-    if (alt && alt.ok) {
-      const data = await alt.json().catch(() => ({}));
-      return NextResponse.json(data);
+  const candidates = [`${BASE}/api/categories/tree`, `${BASE}/api/categories`];
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, { headers: { accept: 'application/json' }, cache: 'no-store' });
+      if (!res.ok) continue;
+      const raw = await res.json().catch(() => null);
+      if (!raw) continue;
+
+      const list = Array.isArray(raw) ? raw : (raw.categories ?? raw.data?.categories ?? raw.data ?? []);
+      const normalized = Array.isArray(list) ? list.map(mapCategory) : [];
+      return NextResponse.json({ success: true, categories: normalized });
+    } catch {
+      // try next
     }
-    return NextResponse.json({ success: true, categories: [] }, { status: 200 });
   }
+
+  return NextResponse.json({ success: true, categories: [] }, { status: 200 });
 }

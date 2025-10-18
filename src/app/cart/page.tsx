@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -30,7 +30,7 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState('');
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isCheckingAddress, setIsCheckingAddress] = useState(false);
-  const [shippingCost, setShippingCost] = useState(50);
+  const [shippingCost, setShippingCost] = useState<number | null>(null);
   const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
 
   useEffect(() => {
@@ -40,39 +40,61 @@ export default function CartPage() {
   }, []);
 
   const subtotal = getCartTotal();
-  const total = subtotal - discount + shippingCost;
+  const total = subtotal - discount + Number(shippingCost ?? 0);
 
   // ฟังก์ชันคำนวณค่าจัดส่ง
-  const calculateShipping = async () => {
-    if (cartItems.length === 0) return;
-    
+  const calculateShipping = useCallback(async () => {
+    if (cartItems.length === 0) {
+      setShippingCost(0);
+      return;
+    }
+
     setIsCalculatingShipping(true);
     try {
       const response = await fetch('/api/shipping/calculate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
         },
         body: JSON.stringify({
           items: cartItems,
           subtotal: subtotal
         })
       });
-      
-      const data = await response.json();
-      if (data.success) {
-        setShippingCost(data.shippingCost);
+
+      const data = await response.json().catch(() => null);
+
+      if (response.ok && data && typeof data.shippingCost !== 'undefined') {
+        setShippingCost(Number(data.shippingCost));
+      } else {
+        const special = cartItems.some((it) => {
+          const name = String(it.name ?? '').toLowerCase();
+          const cat = String(it.category ?? '').toLowerCase();
+          // @ts-ignore
+          const flag = it.specialShipping ?? it.special_shipping ?? false;
+          return flag || name.includes('ปลากัด') || name.includes('betta') || cat.includes('ปลากัด') || cat.includes('betta');
+        });
+        setShippingCost(special ? 150 : 50);
       }
     } catch (error) {
       console.error('Error calculating shipping:', error);
+      const special = cartItems.some((it) => {
+        const name = String(it.name ?? '').toLowerCase();
+        const cat = String(it.category ?? '').toLowerCase();
+        // @ts-ignore
+        const flag = it.specialShipping ?? it.special_shipping ?? false;
+        return flag || name.includes('ปลากัด') || name.includes('betta') || cat.includes('ปลากัด') || cat.includes('betta');
+      });
+      setShippingCost(special ? 150 : 50);
     } finally {
       setIsCalculatingShipping(false);
     }
-  };
+  }, [cartItems, subtotal]);
 
   useEffect(() => {
     calculateShipping();
-  }, [cartItems]);
+  }, [calculateShipping]);
 
   // แก้ไขฟังก์ชัน applyCoupon ให้ debug ดีขึ้น
   const applyCoupon = async () => {
@@ -246,7 +268,7 @@ export default function CartPage() {
           Swal.showLoading(btn);
         } else {
           // fallback สำหรับบางเวอร์ชันให้ build ผ่าน
-          // @ts-ignore
+          // @ts-expect-error – ระบุเหตุผล
           Swal.showLoading();
         }
       },
@@ -439,7 +461,11 @@ export default function CartPage() {
                     <div className="flex justify-between">
                       <span className="text-gray-600">ค่าจัดส่ง</span>
                       <span className="text-gray-800 font-medium">
-                        {shippingCost === 0 ? 'ฟรี' : `${shippingCost} บาท`}
+                        {isCalculatingShipping
+                          ? 'กำลังคำนวณ...'
+                          : Number(shippingCost ?? 0) === 0
+                            ? 'ฟรี'
+                            : `${Number(shippingCost ?? 0).toLocaleString()} บาท`}
                       </span>
                     </div>
                     

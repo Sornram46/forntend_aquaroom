@@ -1,23 +1,19 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { API_BASE_URL } from '@/lib/db';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const payload = await request.json();
+    const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
 
-    if (!payload?.name || !payload?.email || !payload?.password) {
-      return NextResponse.json(
-        { success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วน' },
-        { status: 400 }
-      );
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ success: false, message: 'ไม่พบ token' }, { status: 401 });
     }
 
-    const backendUrl = `${API_BASE_URL.replace(/\/$/, '')}/api/auth/register`;
+    const backendUrl = `${API_BASE_URL.replace(/\/$/, '')}/api/auth/refresh`;
     const backendResponse = await fetch(backendUrl, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers: { Authorization: authHeader },
     });
 
     const data = await backendResponse
@@ -28,9 +24,9 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: data?.message || 'ไม่สามารถสมัครสมาชิกได้',
+          message: data?.message || 'รีเฟรช token ไม่สำเร็จ',
         },
-        { status: backendResponse.status || 502 }
+        { status: backendResponse.status || 401 }
       );
     }
 
@@ -76,20 +72,13 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: data?.message || 'สมัครสมาชิกสำเร็จ',
-        user: user || null,
-        token,
-      },
-      { status: backendResponse.status || 201 }
-    );
+    return NextResponse.json(data, { status: backendResponse.status || 200 });
   } catch (error) {
-    console.error('Register error:', error);
-    return NextResponse.json(
-      { success: false, message: 'เกิดข้อผิดพลาดในการสมัครสมาชิก' },
-      { status: 500 }
-    );
+    console.error('/api/auth/refresh proxy error:', error);
+    return NextResponse.json({ success: false, message: 'เกิดข้อผิดพลาดในการรีเฟรช token' }, { status: 500 });
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ ok: true });
 }

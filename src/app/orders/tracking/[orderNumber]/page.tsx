@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
@@ -50,45 +50,19 @@ export default function OrderTrackingDetailPage() {
   const [order, setOrder] = useState<OrderTracking | null>(null);
   const [loading, setLoading] = useState(true);
   
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/');
-      return;
-    }
-    
-    if (params?.orderNumber && isAuthenticated) {
-      fetchOrderTracking();
-    }
-  }, [isLoading, isAuthenticated, params, router]);
-  
-  const fetchOrderTracking = async () => {
+  const fetchOrderTracking = useCallback(async () => {
     try {
       setLoading(true);
-      
-      console.log('🔍 Fetching order tracking for:', params.orderNumber);
-      
-      const response = await fetch(`/api/orders/track/${params.orderNumber}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
-      
-      console.log('📊 API response status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('❌ API Error:', errorData);
-        throw new Error(errorData.message || 'ไม่พบข้อมูลการติดตามคำสั่งซื้อ');
-      }
-      
-      const data = await response.json();
-      console.log('📦 API response data:', data);
-      
-      if (!data.success) {
-        throw new Error(data.message || 'ไม่พบข้อมูลการติดตามคำสั่งซื้อ');
-      }
-      
-      setOrder(data.order);
+
+      const orderNo = encodeURIComponent(String(params.orderNumber ?? '').trim());
+      if (!orderNo) throw new Error('ไม่พบหมายเลขคำสั่งซื้อ');
+
+      const res = await fetch(`/api/orders/track/${encodeURIComponent(orderNo)}`, { cache: 'no-store', headers: { Accept: 'application/json', Authorization: `Bearer ${localStorage.getItem('auth_token')||''}` }});
+      const data = await res.json();
+      const order = data?.order ?? data?.data?.order ?? null;
+      const displayOrderNo = order?.order_number ?? order?.orderNumber ?? data?.orderNumber;
+      // ใช้ order เพื่อตัดสินใจแสดงผล แทนที่จะสรุปว่าไม่พบเสมอ
+      setOrder(order);
       
     } catch (error) {
       console.error('Error fetching order tracking:', error);
@@ -103,7 +77,18 @@ export default function OrderTrackingDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.orderNumber, router]);
+  
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/');
+      return;
+    }
+    
+    if (params?.orderNumber && isAuthenticated) {
+      fetchOrderTracking();
+    }
+  }, [isLoading, isAuthenticated, params, router, fetchOrderTracking]);
   
   // ฟังก์ชันแปลงสถานะเป็นภาษาไทย
   const translateStatus = (status: string, type: 'payment' | 'order') => {

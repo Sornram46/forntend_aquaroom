@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { GoogleLogin } from '@react-oauth/google';
+import React from 'react';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -12,8 +12,35 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ isOpen, onClose, redirectAfterLogin }: LoginModalProps) {
-  const { login, register, googleLogin, isLoading } = useAuth(); // เพิ่ม googleLogin
+  const { login, register, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const buttonContainerRef = useRef<HTMLDivElement | null>(null);
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+  const allowedOriginsEnv = process.env.NEXT_PUBLIC_GOOGLE_ALLOWED_ORIGINS || '';
+  const isGoogleAllowedHere = useMemo(() => {
+    try {
+      if (typeof window === 'undefined') return false;
+      const origin = window.location.origin;
+      const allowed = allowedOriginsEnv
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (allowed.length === 0) {
+        // Default allow localhost dev if not configured
+        return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+      }
+      return allowed.includes(origin);
+    } catch {
+      return false;
+    }
+  }, [allowedOriginsEnv]);
+  const gisRenderedRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  const redirectRef = useRef(redirectAfterLogin);
+  const successHandledRef = useRef(false);
+
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  useEffect(() => { redirectRef.current = redirectAfterLogin; }, [redirectAfterLogin]);
   
   // ฟอร์มล็อกอิน
   const [loginEmail, setLoginEmail] = useState('');
@@ -68,6 +95,90 @@ export default function LoginModal({ isOpen, onClose, redirectAfterLogin }: Logi
       document.body.style.overflow = 'auto';
     };
   }, [isOpen]);
+
+  // Google Identity Services button
+  useEffect(() => {
+    // If no client ID, not allowed, or modal closed: clear and skip init
+    if (!googleClientId || !isGoogleAllowedHere || !isOpen) {
+      if (buttonContainerRef.current) {
+        try { if (buttonContainerRef.current.isConnected) buttonContainerRef.current.innerHTML = ''; } catch {}
+      }
+      gisRenderedRef.current = false;
+      successHandledRef.current = false;
+      return;
+    }
+
+    const google = (window as any).google;
+
+    const renderButton = () => {
+      if (gisRenderedRef.current) return; // already rendered this session
+      if (!buttonContainerRef.current) return;
+      google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async (response: any) => {
+          try {
+            if (successHandledRef.current) return; // prevent double handling
+            const res = await fetch('/api/auth/google', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({
+                credential: response.credential,
+                id_token: response.credential,
+                token: response.credential,
+                provider: 'google',
+                next: redirectRef.current || '/cart',
+              }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              localStorage.setItem('auth_token', data.token);
+              localStorage.setItem('user', JSON.stringify(data.user));
+              successHandledRef.current = true;
+              onCloseRef.current?.();
+              window.location.href = redirectRef.current || '/cart';
+            } else {
+              alert(data.message || 'Google login failed');
+            }
+          } catch (err) {
+            console.error('Google login error', err);
+            alert('Google login failed');
+          }
+        },
+      });
+      if (buttonContainerRef.current) {
+        try { if (buttonContainerRef.current.isConnected) buttonContainerRef.current.innerHTML = ''; } catch {}
+        google.accounts.id.renderButton(buttonContainerRef.current, { theme: 'outline', size: 'large' });
+        gisRenderedRef.current = true;
+      }
+    };
+
+    if (!google) {
+      const scriptId = 'google-identity-services';
+      const existing = document.getElementById(scriptId);
+      if (!existing) {
+        const script = document.createElement('script');
+        script.id = scriptId;
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        script.onload = renderButton;
+        document.head.appendChild(script);
+      } else {
+        existing.addEventListener('load', renderButton, { once: true });
+      }
+    } else {
+      renderButton();
+    }
+
+    return () => {
+      // Cleanup: clear container safely and allow re-render next time
+      if (buttonContainerRef.current) {
+        try { if (buttonContainerRef.current.isConnected) buttonContainerRef.current.innerHTML = ''; } catch {}
+      }
+      gisRenderedRef.current = false;
+      successHandledRef.current = false;
+    };
+  }, [isOpen, googleClientId, isGoogleAllowedHere]);
   
   // จัดการการล็อกอิน
   const handleLogin = async (e: React.FormEvent) => {
@@ -128,7 +239,7 @@ export default function LoginModal({ isOpen, onClose, redirectAfterLogin }: Logi
   };
   
   if (!isOpen) return null;
-  
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -237,45 +348,26 @@ export default function LoginModal({ isOpen, onClose, redirectAfterLogin }: Logi
                     {isLoading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
                   </button>
                   
-                  <div className="mt-6">
+                  {googleClientId && isGoogleAllowedHere && (
+                    <div className="mt-6">
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-gray-300"></div>
                       </div>
-                      <div className="relative flex justify-center text-sm">
+                      {/* <div className="relative flex justify-center text-sm">
                         <span className="px-2 bg-white text-gray-500">หรือเข้าสู่ระบบด้วย</span>
-                      </div>
+                      </div> */}
                     </div>
                     
-                    <div className="mt-6 grid grid-cols-2 gap-3">
+                    {/* <div className="mt-6 grid grid-cols-2 gap-3">
                       <div className="col-span-2 mb-2">
-                        <GoogleLogin
-                          onSuccess={(credentialResponse) => {
-                            if (credentialResponse.credential) {
-                              googleLogin(credentialResponse.credential).then((success) => {
-                                if (success) {
-                                  onClose();
-                                  if (redirectAfterLogin) {
-                                    window.location.href = redirectAfterLogin;
-                                  }
-                                }
-                              });
-                            }
-                          }}
-                          onError={() => {
-                            console.log('เข้าสู่ระบบด้วย Google ล้มเหลว');
-                          }}
-                          useOneTap
-                          size="large"
-                          width="100%"
-                          text="continue_with"
-                          locale="th"
-                        />
+                        
+                        <div ref={buttonContainerRef} className="flex justify-center"></div>
                       </div>
-
-            
-                    </div>
+                    </div> */}
+                    
                   </div>
+                  )}
                 </form>
               </div>
             )}

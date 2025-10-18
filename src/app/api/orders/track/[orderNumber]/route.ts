@@ -1,40 +1,74 @@
-import { NextRequest } from 'next/server';
-import jwt from 'jsonwebtoken';
+import { NextRequest, NextResponse } from 'next/server';
 
 //
 
 export const runtime = 'nodejs';
 
-const raw =
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.ADMIN_API_URL ||
-  process.env.BACKEND_URL ||
-  '';
-const BASE = raw && raw.startsWith('http') ? raw : raw ? `https://${raw}` : '';
-
-export async function GET(request: Request) {
-  // Extract orderNumber from the URL path to avoid strict typing on the context argument
-  const url = new URL(request.url);
-  const segments = url.pathname.split('/').filter(Boolean);
-  const orderNumber = segments[segments.length - 1];
-  
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ orderNumber: string }> }
+) {
   try {
-    if (!BASE) throw new Error('BACKEND URL is missing');
-    const token = request.headers.get('authorization') || '';
+    const { orderNumber } = await context.params;
+
+    const BASE =
+      process.env.API_BASE_URL ||
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      process.env.BACKEND_URL ||
+      'http://localhost:5000';
+
     const res = await fetch(`${BASE}/api/orders/track/${encodeURIComponent(orderNumber)}`, {
       headers: {
         accept: 'application/json',
-        authorization: token,
+        authorization: request.headers.get('authorization') || '',
+        cookie: request.headers.get('cookie') ?? '',
       },
       cache: 'no-store',
     });
-    return new Response(await res.text(), {
-      status: res.status,
-      headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
-    });
+
+    const contentType = res.headers.get('content-type') || '';
+    if (!res.ok) {
+      if (contentType.includes('application/json')) {
+        const err = await res.json().catch(() => null);
+        return NextResponse.json(err ?? { success: false }, { status: res.status });
+      }
+      const text = await res.text().catch(() => '');
+      return NextResponse.json({ success: false, detail: text }, { status: res.status });
+    }
+
+    const data = contentType.includes('application/json')
+      ? await res.json().catch(() => ({}))
+      : {};
+
+    // normalize หลายรูปแบบของ backend → ให้เหลือ order เดียว
+    const pickOrder = (d: any) => {
+      if (!d || typeof d !== 'object') return null;
+      return (
+        d.order ??
+        d.data?.order ??
+        d.data ??
+        (Array.isArray(d.orders) ? d.orders.find((o: any) =>
+          (o?.order_number ?? o?.orderNumber) === orderNumber
+        ) ?? d.orders[0] : d.orders) ??
+        d.result ??
+        d.payload ??
+        null
+      );
+    };
+
+    const order = pickOrder(data);
+    const normalized = {
+      success: data?.success ?? Boolean(order),
+      order,
+      orderNumber: order?.order_number ?? order?.orderNumber ?? orderNumber,
+    };
+
+    return NextResponse.json(normalized);
   } catch (e) {
-    console.error('Proxy GET /api/orders/track/[orderNumber] failed:', e);
-    return Response.json({ success: false, message: 'Upstream error' }, { status: 502 });
+    return NextResponse.json(
+      { success: false, message: 'ไม่สามารถดึงข้อมูลคำสั่งซื้อได้' },
+      { status: 500 }
+    );
   }
 }
 

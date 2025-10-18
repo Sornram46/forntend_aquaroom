@@ -33,7 +33,7 @@ export default async function CategoriesSection() {
           {categories.map((category, index) => (
             <Link
               key={category.id}
-              href={`/products`}
+              href={`/category/${encodeURIComponent(category.name)}`}
               className="group block scroll-scale"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
