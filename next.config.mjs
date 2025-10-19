@@ -13,6 +13,9 @@ const nextConfig = {
         hostname: '**.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
+       { protocol: 'https', hostname: 'backend-aquaroom.vercel.app', pathname: '/**' },
+      { protocol: 'https', hostname: 'qetuivlvofhxkwwatemu.supabase.co', pathname: '/**' },
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com', pathname: '/**' },
     ],
   },
   async headers() {
