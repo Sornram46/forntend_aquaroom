@@ -61,6 +61,12 @@ function normalizeProduct(src: any) {
 
 export async function GET(request: NextRequest) {
   try {
+    const rid = (() => {
+      try {
+        // @ts-ignore
+        return (globalThis.crypto?.randomUUID?.() as string) || Math.random().toString(36).slice(2);
+      } catch { return Math.random().toString(36).slice(2); }
+    })();
     const auth = request.headers.get('authorization') || '';
     const { search } = new URL(request.url);
 
@@ -76,8 +82,11 @@ export async function GET(request: NextRequest) {
     let lastError: any = null;
     let lastResponse: Response | null = null;
 
+    console.log(`[${rid}] GET /api/products candidates:`, endpointCandidates);
     for (const url of endpointCandidates) {
       try {
+        const started = Date.now();
+        console.log(`[${rid}] -> ${url}`);
         const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
         const res = await fetch(url, {
           cache: 'no-store',
@@ -86,6 +95,7 @@ export async function GET(request: NextRequest) {
         });
         clearTimeout(timeout);
         lastResponse = res;
+        console.log(`[${rid}] <- ${res.status} from ${url} in ${Date.now() - started}ms`);
 
         if (!res.ok) {
           // try next on 404, otherwise break and surface
@@ -113,6 +123,7 @@ export async function GET(request: NextRequest) {
       } catch (err: any) {
         // network/connect timeout; continue to next candidate
         lastError = err;
+        console.warn(`[${rid}] error for candidate:`, err?.code || err?.name || err?.message || String(err));
         continue;
       }
     }
@@ -124,8 +135,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.error('Proxy GET /api/products exhausted candidates', {
-      candidates: endpointCandidates,
+    console.error(`[${rid}] Proxy GET /api/products exhausted candidates`, {
       error: lastError?.code || lastError?.message || String(lastError),
     });
     // Keep UI alive with empty list if all hosts failed

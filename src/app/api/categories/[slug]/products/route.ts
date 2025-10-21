@@ -19,10 +19,14 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ slug: stri
   const { slug } = await ctx.params;
   const BASE = resolveBase();
   try {
-    const res = await fetch(`${BASE}/api/categories/${encodeURIComponent(slug)}/products`, {
+    const url = `${BASE}/api/categories/${encodeURIComponent(slug)}/products`;
+    const started = Date.now();
+    console.log(`GET /api/categories/[slug]/products -> ${url}`);
+    const res = await fetch(url, {
       headers: { accept: 'application/json' },
       cache: 'no-store',
     });
+    console.log(`GET /api/categories/[slug]/products <- ${res.status} in ${Date.now() - started}ms from ${url}`);
     const data = await res.json().catch(() => ({}));
     return NextResponse.json(data, { status: res.status });
   } catch (e) {

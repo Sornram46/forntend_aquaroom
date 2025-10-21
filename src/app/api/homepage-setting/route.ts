@@ -21,11 +21,25 @@ function resolveBase() {
 }
 const BASE = resolveBase();
 
+function newRid() {
+  try {
+    // @ts-ignore
+    return (globalThis.crypto?.randomUUID?.() as string) || Math.random().toString(36).slice(2);
+  } catch {
+    return Math.random().toString(36).slice(2);
+  }
+}
+
 // GET - ดึงข้อมูลการตั้งค่าหน้าแรก รวม Logo
 export async function GET() {
   try {
+    const rid = newRid();
+    const started = Date.now();
+    const url = `${BASE}/api/homepage-setting`;
+    console.log(`[${rid}] GET /api/homepage-setting -> ${url}`);
     if (!BASE) throw new Error('BACKEND URL is missing');
-    const res = await fetch(`${BASE}/api/homepage-setting`, { cache: 'no-store' });
+    const res = await fetch(url, { cache: 'no-store' });
+    console.log(`[${rid}] GET /api/homepage-setting <- ${res.status} in ${Date.now() - started}ms`);
     return new Response(await res.text(), {
       status: res.status,
       headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
@@ -41,12 +55,17 @@ export async function GET() {
 // Pass-through to backend for PATCH as well (frontend should not touch DB directly)
 export async function PATCH(request: NextRequest) {
   try {
+    const rid = newRid();
+    const started = Date.now();
+    const url = `${BASE}/api/homepage-setting`;
+    console.log(`[${rid}] PATCH /api/homepage-setting -> ${url}`);
     if (!BASE) throw new Error('BACKEND URL is missing');
-    const res = await fetch(`${BASE}/api/homepage-setting`, {
+    const res = await fetch(url, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: await request.text(),
     });
+    console.log(`[${rid}] PATCH /api/homepage-setting <- ${res.status} in ${Date.now() - started}ms`);
     return new Response(await res.text(), {
       status: res.status,
       headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
@@ -61,12 +80,17 @@ export async function PATCH(request: NextRequest) {
 // Pass-through to backend for POST as well
 export async function POST(request: NextRequest) {
   try {
+    const rid = newRid();
+    const started = Date.now();
+    const url = `${BASE}/api/homepage-setting`;
+    console.log(`[${rid}] POST /api/homepage-setting -> ${url}`);
     if (!BASE) throw new Error('BACKEND URL is missing');
-    const res = await fetch(`${BASE}/api/homepage-setting`, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: await request.text(),
     });
+    console.log(`[${rid}] POST /api/homepage-setting <- ${res.status} in ${Date.now() - started}ms`);
     return new Response(await res.text(), {
       status: res.status,
       headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },

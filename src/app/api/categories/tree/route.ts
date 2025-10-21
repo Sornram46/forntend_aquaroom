@@ -44,7 +44,10 @@ export async function GET(_req: NextRequest) {
 
   for (const url of candidates) {
     try {
+      const started = Date.now();
+      console.log(`GET /api/categories/tree -> ${url}`);
       const res = await fetch(url, { headers: { accept: 'application/json' }, cache: 'no-store' });
+      console.log(`GET /api/categories/tree <- ${res.status} in ${Date.now() - started}ms from ${url}`);
       if (!res.ok) continue;
       const raw = await res.json().catch(() => null);
       if (!raw) continue;

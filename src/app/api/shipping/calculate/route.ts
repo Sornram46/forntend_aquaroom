@@ -41,7 +41,10 @@ export async function POST(request: NextRequest) {
     const t = setTimeout(() => controller.abort(), 6000);
 
     // เรียก endpoint ให้ตรงฝั่ง backend
-    const res = await fetch(`${BASE}/api/calculate-shipping`, {
+    const url = `${BASE}/api/calculate-shipping`;
+    const started = Date.now();
+    console.log(`POST /api/shipping/calculate -> ${url}`);
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -54,6 +57,7 @@ export async function POST(request: NextRequest) {
       signal: controller.signal,
     }).catch(() => null as any);
     clearTimeout(t);
+    console.log(`POST /api/shipping/calculate <- ${res ? res.status : 'ERR'} in ${Date.now() - started}ms`);
 
     if (res && res.ok) {
       const data = await res.json().catch(() => ({}));

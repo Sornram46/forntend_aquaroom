@@ -66,6 +66,11 @@ function normalizeProduct(src: any) {
 
 export async function GET(request: NextRequest) {
   try {
+    const rid = (() => {
+      try { // @ts-ignore
+        return (globalThis.crypto?.randomUUID?.() as string) || Math.random().toString(36).slice(2);
+      } catch { return Math.random().toString(36).slice(2); }
+    })();
     if (!BASE) throw new Error('BACKEND URL is missing');
 
     const url = new URL(request.url);
@@ -124,9 +129,13 @@ export async function GET(request: NextRequest) {
       }
       return null;
     };
+    console.log(`[${rid}] GET /api/products/[id](${id}) candidates:`, targets);
     for (const t of targets) {
+      const started = Date.now();
+      console.log(`[${rid}] -> ${t}`);
       const res = await fetch(t, { cache: 'no-store', headers: { accept: 'application/json', authorization: auth } });
       last = res;
+      console.log(`[${rid}] <- ${res.status} from ${t} in ${Date.now() - started}ms`);
       if (!res.ok) { if (res.status === 404) continue; break; }
       const ct = res.headers.get('content-type') || '';
       if (!ct.includes('application/json')) {
@@ -134,6 +143,9 @@ export async function GET(request: NextRequest) {
       }
       const payload = await res.json();
       const candidate = pickProductFromPayload(payload, id);
+      if (!candidate) {
+        console.log(`[${rid}] no exact match in payload for id=${id}`);
+      }
       if (candidate) {
         return Response.json(normalizeProduct(candidate), { status: 200 });
       }

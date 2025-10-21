@@ -22,8 +22,14 @@ const BASE = resolveBase();
 
 export async function GET() {
   try {
+    const rid = (() => { try { // @ts-ignore
+      return (globalThis.crypto?.randomUUID?.() as string) || Math.random().toString(36).slice(2); } catch { return Math.random().toString(36).slice(2); } })();
+    const started = Date.now();
+    const url = `${BASE}/api/products/popular`;
+    console.log(`[${rid}] GET /api/products/popular -> ${url}`);
     if (!BASE) throw new Error('BACKEND URL is missing');
-    const res = await fetch(`${BASE}/api/products/popular`, { cache: 'no-store' });
+    const res = await fetch(url, { cache: 'no-store' });
+    console.log(`[${rid}] GET /api/products/popular <- ${res.status} in ${Date.now() - started}ms`);
     return new Response(await res.text(), {
       status: res.status,
       headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },

@@ -40,17 +40,25 @@ function mapCategory(c: any): any {
 export async function GET(_req: NextRequest) {
   const BASE = resolveBase();
   try {
-    const res = await fetch(`${BASE}/api/categories`, {
+    const rid = (() => { try { // @ts-ignore
+      return (globalThis.crypto?.randomUUID?.() as string) || Math.random().toString(36).slice(2); } catch { return Math.random().toString(36).slice(2); } })();
+    const url = `${BASE}/api/categories`;
+    const started = Date.now();
+    console.log(`[${rid}] GET /api/categories -> ${url}`);
+    const res = await fetch(url, {
       headers: { accept: 'application/json' },
       cache: 'no-store',
     });
+    console.log(`[${rid}] GET /api/categories <- ${res.status} in ${Date.now() - started}ms`);
     const raw = await res.json().catch(() => null);
     const list = Array.isArray(raw) ? raw : (raw.categories ?? raw.data?.categories ?? raw.data ?? []);
     const normalized = Array.isArray(list) ? list.map(mapCategory) : [];
     return NextResponse.json({ success: true, categories: normalized }, { status: res.ok ? 200 : res.status });
   } catch {
     // fallback ไป tree proxy
-    const alt = await fetch(`${BASE}/api/categories/tree`).catch(() => null as any);
+    const altUrl = `${BASE}/api/categories/tree`;
+    console.warn(`GET /api/categories primary failed, trying: ${altUrl}`);
+    const alt = await fetch(altUrl).catch(() => null as any);
     if (alt && alt.ok) {
       const data = await alt.json().catch(() => ({}));
       return NextResponse.json(data);
