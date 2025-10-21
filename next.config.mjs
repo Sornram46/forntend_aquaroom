@@ -1,20 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
+    // เปิดใช้ขนาดมาตรฐานที่มี 1080
+    deviceSizes: [320, 420, 640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'qetuivlvofhxkwwatemu.supabase.co',
-        pathname: '/storage/v1/object/public/**',
-      },
-      // สำรอง: รองรับโปรเจ็กต์ Supabase อื่นๆ ด้วย (ถ้าไม่ต้องการ ลบได้)
-      {
-        protocol: 'https',
-        hostname: '**.supabase.co',
-        pathname: '/storage/v1/object/public/**',
-      },
-       { protocol: 'https', hostname: 'backend-aquaroom.vercel.app', pathname: '/**' },
-      { protocol: 'https', hostname: 'qetuivlvofhxkwwatemu.supabase.co', pathname: '/**' },
+      // Backend ของคุณ
+      { protocol: 'https', hostname: 'backend-aquaroom.vercel.app', pathname: '/**' },
+      // รูปจาก Supabase (public bucket)
+      { protocol: 'https', hostname: '**.supabase.co', pathname: '/storage/v1/object/public/**' },
+      // รูปบัญชี Google (ถ้ามี)
       { protocol: 'https', hostname: 'lh3.googleusercontent.com', pathname: '/**' },
     ],
   },
