@@ -2,12 +2,23 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-const raw =
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.ADMIN_API_URL ||
-  process.env.BACKEND_URL ||
-  'https://backend-aquaroom.vercel.app';
-const BASE = raw.startsWith('http') ? raw : `https://${raw}`;
+function resolveBase() {
+  const raw =
+    process.env.API_BASE_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.ADMIN_API_URL ||
+    process.env.BACKEND_URL ||
+    (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://backend-aquaroom.vercel.app');
+  const s = (raw || '').trim();
+  const lower = s.toLowerCase();
+  if (!s || lower.startsWith('postgres://') || lower.startsWith('postgresql://') || lower.includes(':5432')) {
+    return 'https://backend-aquaroom.vercel.app';
+  }
+  if (s.startsWith('http://') || s.startsWith('https://')) return s;
+  if (s.startsWith('localhost') || s.startsWith('127.0.0.1')) return `http://${s}`;
+  return `https://${s}`;
+}
+const BASE = resolveBase();
 
 export async function GET() {
   try {

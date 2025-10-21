@@ -2,15 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-const pickBase = () =>
-  process.env.API_BASE_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.BACKEND_URL ||
-  'http://localhost:5000';
+function resolveBase() {
+  const raw =
+    process.env.API_BASE_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.ADMIN_API_URL ||
+    process.env.BACKEND_URL ||
+    (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://backend-aquaroom.vercel.app');
+  if (!raw) return 'https://backend-aquaroom.vercel.app';
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  if (raw.startsWith('localhost') || raw.startsWith('127.0.0.1')) return `http://${raw}`;
+  return `https://${raw}`;
+}
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
-  const BASE = pickBase();
+  const BASE = resolveBase();
   try {
     const res = await fetch(`${BASE}/api/categories/${encodeURIComponent(slug)}/products`, {
       headers: { accept: 'application/json' },

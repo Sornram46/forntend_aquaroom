@@ -2,11 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-const pickBase = () =>
-  process.env.API_BASE_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.BACKEND_URL ||
-  'http://localhost:5000';
+function resolveBase() {
+  const raw =
+    process.env.API_BASE_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.ADMIN_API_URL ||
+    process.env.BACKEND_URL ||
+    (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://backend-aquaroom.vercel.app');
+  if (!raw) return 'https://backend-aquaroom.vercel.app';
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  if (raw.startsWith('localhost') || raw.startsWith('127.0.0.1')) return `http://${raw}`;
+  return `https://${raw}`;
+}
 
 function toSlug(name: string) {
   return String(name || '')
@@ -32,7 +39,7 @@ function mapCategory(c: any): any {
 }
 
 export async function GET(_req: NextRequest) {
-  const BASE = pickBase();
+  const BASE = resolveBase();
   const candidates = [`${BASE}/api/categories/tree`, `${BASE}/api/categories`];
 
   for (const url of candidates) {

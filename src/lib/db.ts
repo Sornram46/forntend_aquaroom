@@ -6,18 +6,24 @@ const defaultBase =
     : 'https://backend-aquaroom.vercel.app';
 
 const raw =
+  process.env.API_BASE_URL ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.ADMIN_API_URL ||
   process.env.BACKEND_URL ||
   defaultBase;
 
-// ให้แน่ใจว่ามี protocol ที่ถูกต้องเสมอ และใช้ http เมื่อเป็น localhost
+// ให้แน่ใจว่ามี protocol ที่ถูกต้องเสมอ และหลีกเลี่ยงค่า DB URL/พอร์ต 5432
 export const API_BASE_URL = (() => {
-  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-  if (raw.startsWith('localhost') || raw.startsWith('127.0.0.1')) {
-    return `http://${raw}`;
+  const s = (raw || '').trim();
+  const lower = s.toLowerCase();
+  if (!s || lower.startsWith('postgres://') || lower.startsWith('postgresql://') || lower.includes(':5432')) {
+    return defaultBase;
   }
-  return `https://${raw}`;
+  if (s.startsWith('http://') || s.startsWith('https://')) return s;
+  if (s.startsWith('localhost') || s.startsWith('127.0.0.1')) {
+    return `http://${s}`;
+  }
+  return `https://${s}`;
 })();
 
 // แปลง path เป็น absolute URL (กันกรณี /uploads/...)

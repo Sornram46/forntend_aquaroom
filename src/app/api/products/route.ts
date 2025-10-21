@@ -8,11 +8,16 @@ const rawCandidates = [
   process.env.NEXT_PUBLIC_BACKEND_URL,
   process.env.ADMIN_API_URL,
   process.env.BACKEND_URL,
-  'http://localhost:5000',
+  process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://backend-aquaroom.vercel.app',
   'https://backend-aquaroom.vercel.app',
 ].filter(Boolean) as string[];
 
-const BASES = rawCandidates.map((r) => (r.startsWith('http') ? r : `https://${r}`));
+const BASES = rawCandidates
+  .map((r) => (r.startsWith('http') ? r : r.startsWith('localhost') || r.startsWith('127.0.0.1') ? `http://${r}` : `https://${r}`))
+  .filter((u) => {
+    const s = u.toLowerCase();
+    return !s.startsWith('postgres://') && !s.startsWith('postgresql://') && !s.includes(':5432');
+  });
 
 function normalizeProduct(src: any) {
   const p = src ?? {};

@@ -1,11 +1,27 @@
 import Link from 'next/link';
 import ProductGrid from '@/components/ProductGrid';
 
+function absoluteSelfBase() {
+  // Prefer explicit public base when provided
+  const pub = process.env.NEXT_PUBLIC_BASE_URL;
+  if (pub && (pub.startsWith('http://') || pub.startsWith('https://'))) return pub.replace(/\/$/, '');
+  // Fallback to Vercel/Next provided URL via headers at runtime
+  // In server components, URL isn't directly available here, so use VERCEL_URL if present
+  const vercel = process.env.VERCEL_URL; // e.g. my-app.vercel.app
+  if (vercel) {
+    if (vercel.startsWith('http')) return vercel.replace(/\/$/, '');
+    return `https://${vercel}`.replace(/\/$/, '');
+  }
+  return '';
+}
+
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const decoded = decodeURIComponent(slug || '');
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/categories/${encodeURIComponent(decoded)}/products`, {
+  const self = absoluteSelfBase();
+  const base = self || '';
+  const res = await fetch(`${base}/api/categories/${encodeURIComponent(decoded)}/products`, {
     cache: 'no-store',
   });
 
