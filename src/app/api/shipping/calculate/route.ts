@@ -1,84 +1,33 @@
 // src/app/api/shipping/calculate/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-
 export const runtime = 'nodejs';
 
-function pickBase() {
-  return (
-    process.env.API_BASE_URL ||
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    process.env.BACKEND_URL ||
-    'http://localhost:5000'
-  );
-}
+import { NextRequest, NextResponse } from 'next/server';
+import { resolveBackendBase, logStart, logEnd } from '@/lib/backend';
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
+  const rid = crypto.randomUUID();
+  const base = resolveBackendBase();
+  const url = `${base}/api/shipping/calculate`;
+  const body = await req.json().catch(() => ({}));
+  const t0 = Date.now();
+  
   try {
-    const { items, subtotal, destination } = await request.json();
-
-    const normalizedItems = Array.isArray(items)
-      ? items.map((it: any) => ({
-          // ส่งคีย์ตามที่ backend ใช้จริง: productId
-          productId: Number(it.productId ?? it.product_id ?? it.id ?? it.product?.id ?? 0),
-          quantity: Number(it.quantity ?? 1),
-          // ใส่ price ด้วย เพื่อให้ backend เช็ค free shipping ได้ถูก
-          price: Number(
-            typeof it.price === 'string' ? parseFloat(it.price) :
-            it.price ?? it.unit_price ?? it.product?.price ?? 0
-          ),
-        }))
-      : [];
-
-    const payload = {
-      items: normalizedItems.filter((x: any) => Number.isFinite(x.productId) && x.productId > 0),
-      // ส่งต่อปลายทางถ้ามี (เช่น bangkok/provinces/remote)
-      destination: destination ?? undefined,
-      // subtotal ไม่จำเป็นสำหรับ backend นี้ ตัดออกได้
-    };
-
-    const BASE = pickBase();
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 6000);
-
-    // เรียก endpoint ให้ตรงฝั่ง backend
-    const url = `${BASE}/api/calculate-shipping`;
-    const started = Date.now();
-    console.log(`POST /api/shipping/calculate -> ${url}`);
-    const res = await fetch(url, {
+    logStart(rid, '/api/shipping/calculate', url, 'POST');
+    const r = await fetch(url, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        accept: 'application/json',
-        authorization: request.headers.get('authorization') || '',
-        cookie: request.headers.get('cookie') ?? '',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
       cache: 'no-store',
-      signal: controller.signal,
-    }).catch(() => null as any);
-    clearTimeout(t);
-    console.log(`POST /api/shipping/calculate <- ${res ? res.status : 'ERR'} in ${Date.now() - started}ms`);
-
-    if (res && res.ok) {
-      const data = await res.json().catch(() => ({}));
-      // backend คืน totalShippingCost ใน data
-      const shippingCost = Number(
-        data?.data?.totalShippingCost ?? data?.totalShippingCost ?? 0
-      );
-      return NextResponse.json({ success: true, shippingCost });
-    }
-
-    // Fallback: เดาสินค้าพิเศษ
-    const special = Array.isArray(items) && items.some((it: any) => {
-      const name = String(it.name ?? '').toLowerCase();
-      const cat = String(it.category ?? '').toLowerCase();
-      const flag = it.specialShipping ?? it.special_shipping ?? false;
-      return flag || name.includes('ปลากัด') || name.includes('betta') || cat.includes('ปลากัด') || cat.includes('betta');
     });
-
-    return NextResponse.json({ success: true, shippingCost: special ? 150 : 50 });
-  } catch {
-    return NextResponse.json({ success: true, shippingCost: 50 });
+    const data = await r.json().catch(() => ({}));
+    logEnd(rid, url, r.status, Date.now() - t0);
+    return NextResponse.json(data, { status: r.status });
+  } catch (e: any) {
+    console.error(`[${rid}] shipping error:`, e?.code || e?.name, e?.message);
+    return NextResponse.json({ error: 'proxy_error', message: e?.message }, { status: 502 });
   }
 }
 

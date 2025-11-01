@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveBackendBase, logStart, logEnd } from '@/lib/backend';
 
 export const runtime = 'nodejs';
-
-function resolveBase() {
-  const raw =
-    process.env.API_BASE_URL ||
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    process.env.ADMIN_API_URL ||
-    process.env.BACKEND_URL ||
-    (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://backend-aquaroom.vercel.app');
-  if (!raw) return 'https://backend-aquaroom.vercel.app';
-  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-  if (raw.startsWith('localhost') || raw.startsWith('127.0.0.1')) return `http://${raw}`;
-  return `https://${raw}`;
-}
 
 function toSlug(name: string) {
   return String(name || '')
@@ -38,31 +26,21 @@ function mapCategory(c: any): any {
 }
 
 export async function GET(_req: NextRequest) {
-  const BASE = resolveBase();
+  const rid = crypto.randomUUID();
+  const base = resolveBackendBase();
+  const url = `${base}/api/categories`;
+  const t0 = Date.now();
   try {
-    const rid = (() => { try { // @ts-ignore
-      return (globalThis.crypto?.randomUUID?.() as string) || Math.random().toString(36).slice(2); } catch { return Math.random().toString(36).slice(2); } })();
-    const url = `${BASE}/api/categories`;
-    const started = Date.now();
-    console.log(`[${rid}] GET /api/categories -> ${url}`);
-    const res = await fetch(url, {
-      headers: { accept: 'application/json' },
+    logStart(rid, '/api/categories', url);
+    const r = await fetch(url, {
       cache: 'no-store',
+      headers: { 'Accept': 'application/json' },
     });
-    console.log(`[${rid}] GET /api/categories <- ${res.status} in ${Date.now() - started}ms`);
-    const raw = await res.json().catch(() => null);
-    const list = Array.isArray(raw) ? raw : (raw.categories ?? raw.data?.categories ?? raw.data ?? []);
-    const normalized = Array.isArray(list) ? list.map(mapCategory) : [];
-    return NextResponse.json({ success: true, categories: normalized }, { status: res.ok ? 200 : res.status });
-  } catch {
-    // fallback ไป tree proxy
-    const altUrl = `${BASE}/api/categories/tree`;
-    console.warn(`GET /api/categories primary failed, trying: ${altUrl}`);
-    const alt = await fetch(altUrl).catch(() => null as any);
-    if (alt && alt.ok) {
-      const data = await alt.json().catch(() => ({}));
-      return NextResponse.json(data);
-    }
-    return NextResponse.json({ success: true, categories: [] }, { status: 200 });
+    const data = await r.json().catch(() => ([]));
+    logEnd(rid, url, r.status, Date.now() - t0);
+    return NextResponse.json(data, { status: r.status });
+  } catch (e: any) {
+    console.error(`[${rid}] categories error:`, e?.code || e?.name, e?.message);
+    return NextResponse.json({ error: 'proxy_error', message: e?.message }, { status: 502 });
   }
 }

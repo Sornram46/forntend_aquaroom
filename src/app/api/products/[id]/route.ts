@@ -47,19 +47,95 @@ function normalizeProduct(src: any) {
   };
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const rid = crypto.randomUUID();
   const base = resolveBackendBase();
   const url = `${base}/api/products/${encodeURIComponent(params.id)}`;
   const t0 = Date.now();
+  
   try {
     logStart(rid, `/api/products/${params.id}`, url);
-    const r = await fetch(url, { cache: 'no-store', headers: { accept: 'application/json' } });
-    const data = await r.json().catch(() => ({}));
+    const r = await fetch(url, { 
+      cache: 'no-store',
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    const ct = r.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      const text = await r.text();
+      logEnd(rid, url, r.status, Date.now() - t0);
+      return new NextResponse(text, { status: r.status, headers: { 'content-type': ct } });
+    }
+
+    const payload = await r.json().catch(() => ({}));
+    const product = payload?.product ?? payload?.data ?? payload;
+    const normalized = normalizeProduct(product);
+
     logEnd(rid, url, r.status, Date.now() - t0);
-    return NextResponse.json(data, { status: r.status });
+    return NextResponse.json(normalized, { status: r.status });
   } catch (e: any) {
     console.error(`[${rid}] products/${params.id} error:`, e?.code || e?.name, e?.message);
+    return NextResponse.json({ error: 'proxy_error', message: e?.message }, { status: 502 });
+  }
+}
+
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  const rid = crypto.randomUUID();
+  const base = resolveBackendBase();
+  const url = `${base}/api/products/${encodeURIComponent(params.id)}`;
+  const t0 = Date.now();
+
+  try {
+    logStart(rid, `/api/products/${params.id}`, url, 'PUT');
+    const body = await request.text();
+    const r = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': request.headers.get('content-type') || 'application/json',
+        'Authorization': request.headers.get('authorization') || '',
+        'Accept': 'application/json',
+      },
+      body,
+      cache: 'no-store',
+    });
+    
+    const data = await r.text();
+    logEnd(rid, url, r.status, Date.now() - t0);
+    return new NextResponse(data, {
+      status: r.status,
+      headers: { 'content-type': r.headers.get('content-type') ?? 'application/json' },
+    });
+  } catch (e: any) {
+    console.error(`[${rid}] PUT products/${params.id} error:`, e?.code || e?.name, e?.message);
+    return NextResponse.json({ error: 'proxy_error', message: e?.message }, { status: 502 });
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  const rid = crypto.randomUUID();
+  const base = resolveBackendBase();
+  const url = `${base}/api/products/${encodeURIComponent(params.id)}`;
+  const t0 = Date.now();
+
+  try {
+    logStart(rid, `/api/products/${params.id}`, url, 'DELETE');
+    const r = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': request.headers.get('authorization') || '',
+        'Accept': 'application/json',
+      },
+      cache: 'no-store',
+    });
+    
+    const data = await r.text();
+    logEnd(rid, url, r.status, Date.now() - t0);
+    return new NextResponse(data, {
+      status: r.status,
+      headers: { 'content-type': r.headers.get('content-type') ?? 'application/json' },
+    });
+  } catch (e: any) {
+    console.error(`[${rid}] DELETE products/${params.id} error:`, e?.code || e?.name, e?.message);
     return NextResponse.json({ error: 'proxy_error', message: e?.message }, { status: 502 });
   }
 }

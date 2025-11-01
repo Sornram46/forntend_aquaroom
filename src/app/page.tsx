@@ -4,6 +4,7 @@ import ScrollAnimation from '@/components/ScrollAnimation';
 import CategoriesSection from '@/components/CategoriesSection';
 import Link from 'next/link';
 import { fetchHomepageSettings } from '@/lib/db';
+import { resolveFrontendBase } from '@/lib/backend';
 
 export const dynamic = 'force-dynamic';          // บังคับ SSR
 export const fetchCache = 'force-no-store';      // ถ้าต้อง no-store
@@ -11,6 +12,14 @@ export const fetchCache = 'force-no-store';      // ถ้าต้อง no-sto
 // ดึงข้อมูล homepage_setting จาก backend โดยตรง (เลี่ยง relative URL)
 async function getHomepageSetting() {
   return await fetchHomepageSettings();
+}
+
+// Safe function to fetch categories
+async function fetchCategoriesSafe() {
+  const base = resolveFrontendBase();
+  const res = await fetch(`${base}/api/categories`, { cache: 'no-store' });
+  if (!res.ok) return [];
+  return res.json();
 }
 
 // Categories แสดงผ่านคอมโพเนนต์ที่ไปดึงเอง ไม่ต้องดึงซ้ำที่นี่
