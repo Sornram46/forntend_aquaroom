@@ -268,7 +268,6 @@ export default function CartPage() {
           Swal.showLoading(btn);
         } else {
           // fallback สำหรับบางเวอร์ชันให้ build ผ่าน
-          // @ts-expect-error – ระบุเหตุผล
           Swal.showLoading();
         }
       },
