@@ -38,3 +38,11 @@ export function logStart(rid: string, path: string, url: string, method = 'GET')
 export function logEnd(rid: string, url: string, status: number, ms: number) {
   console.log(`[${rid}] <- ${status} from ${url} in ${ms}ms`);
 }
+
+export function backendBase() {
+  const env =
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.BACKEND_URL ||
+    'https://backend-aquaroom.vercel.app';
+  return env.replace(/\/+$/, '');
+}

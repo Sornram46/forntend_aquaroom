@@ -10,6 +10,8 @@ const nextConfig = {
       { protocol: 'https', hostname: '**.supabase.co', pathname: '/storage/v1/object/public/**' },
       // รูปบัญชี Google (ถ้ามี)
       { protocol: 'https', hostname: 'lh3.googleusercontent.com', pathname: '/**' },
+      // dev backend (if images are served from local API)
+      { protocol: 'http', hostname: 'localhost', port: '5000', pathname: '/**' },
     ],
   },
   async headers() {

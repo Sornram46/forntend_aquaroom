@@ -25,37 +25,59 @@ export default function ProductsPage() {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        
-        const response = await fetch('/api/products', {
-          signal: controller.signal,
-          cache: 'no-store'
-        });
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch products');
+        const res = await fetch('/api/products', { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        const toAbs = (u?: string | null): string | null => {
+          if (!u) return null;
+          try {
+            if (u.startsWith('http://') || u.startsWith('https://')) return u;
+            // relative path from backend like /uploads/...
+            const base = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://backend-aquaroom.vercel.app';
+            return `${base}${u.startsWith('/') ? '' : '/'}${u}`;
+          } catch {
+            return null;
+          }
+        };
+
+        const pickImage = (p: any): string | null => {
+          const arr = [
+            p.imageUrl,
+            p.image_url,
+            Array.isArray(p.images) ? p.images[0] : undefined,
+            Array.isArray(p.image_urls) ? p.image_urls[0] : undefined,
+            p.thumbnail,
+            p.cover,
+            p.mainImage,
+            p.photo,
+          ].filter(Boolean);
+          return toAbs(arr[0] as string | undefined) ?? null;
+        };
+
+        const mapped: Product[] = (Array.isArray(data) ? data : data?.items || []).map((p: any) => ({
+          id: Number(p.id ?? p._id ?? p.productId ?? 0),
+          name: String(p.name ?? p.title ?? ''),
+          price: Number(p.price ?? p.unit_price ?? 0),
+          imageUrl: pickImage(p),
+          category: String(p.category ?? p.category_name ?? 'ทั่วไป'),
+          stock: Number(p.stock ?? p.quantity ?? 0),
+        }));
+
+        const missing = mapped.filter(x => !x.imageUrl);
+        if (missing.length) {
+          console.warn('[Products] items with no imageUrl:', missing.length, missing.map(m => ({ id: m.id, name: m.name })));
         }
-        
-        const data = await response.json();
-        console.log('Products loaded:', data.length);
-        setProducts(data);
-        setFilteredProducts(data);
-        
-        const uniqueCategories: string[] = Array.from(
-          new Set(data.filter((p: Product) => p.category).map((p: Product) => p.category))
-        );
-        setCategories(uniqueCategories);
+
+        setProducts(mapped);
+        setFilteredProducts(mapped);
+        setCategories(['all', ...Array.from(new Set(mapped.map(p => p.category)))]);
       } catch (error) {
         console.error('Error loading products:', error);
-        setProducts([]);
-        setFilteredProducts([]);
       } finally {
-        setTimeout(() => setLoading(false), 800);
+        setLoading(false);
       }
     }
-    
     fetchProducts();
   }, []);
 
@@ -146,9 +168,9 @@ export default function ProductsPage() {
         </motion.div>
         
         {loading ? (
-          // สถานะกำลังโหลด - Mobile: 2 columns, Tablet: 3 columns, Desktop: 4 columns
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-            {[...Array(8)].map((_, i) => (
+          // สถานะกำลังโหลด - Mobile: 2 cols, ≥sm: 4 cols, ≥lg: 6 cols
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
+            {[...Array(12)].map((_, i) => (
               <div key={i} className="bg-white rounded-lg p-3 sm:p-4 shadow-md animate-pulse">
                 <div className="w-full aspect-square bg-gray-200 rounded-md mb-3 sm:mb-4"></div>
                 <div className="h-3 sm:h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
