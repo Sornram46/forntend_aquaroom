@@ -4,84 +4,94 @@ export const runtime = 'nodejs';
 
 function resolveBase() {
   const raw =
+    process.env.API_BASE_URL ||
     process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.ADMIN_API_URL ||
     process.env.BACKEND_URL ||
-    'https://backend-aquaroom.vercel.app';
-  return (raw || '').trim().replace(/\/+$/, '');
+    (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://backend-aquaroom.vercel.app');
+  if (!raw) return 'https://backend-aquaroom.vercel.app';
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  if (raw.startsWith('localhost') || raw.startsWith('127.0.0.1')) return `http://${raw}`;
+  return `https://${raw}`;
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { category: string } }
-) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ slug: string }> }) {
+  const { slug } = await ctx.params;
+  const BASE = resolveBase();
+  
   try {
-    const base = resolveBase();
-    const category = params.category;
-
-    // URL encode category ให้ถูกต้อง
-    const encodedCategory = encodeURIComponent(category);
-    const backendUrl = `${base}/api/categories/${encodedCategory}/products`;
-
-    // ส่ง headers authentication (ถ้ามี) และ headers อื่นๆ ที่จำเป็น
+    const url = `${BASE}/api/categories/${encodeURIComponent(slug)}/products`;
+    const started = Date.now();
+    console.log(`[Categories] GET -> ${url}`);
+    
+    // สร้าง headers และส่ง authorization/cookie จาก client
     const headers: HeadersInit = {
-      Accept: 'application/json',
+      'Accept': 'application/json',
       'Content-Type': 'application/json',
     };
-
-    // Copy authorization header จาก client request (ถ้ามี)
-    const authHeader = request.headers.get('authorization');
+    
+    // ส่ง Authorization header (ถ้ามี)
+    const authHeader = req.headers.get('authorization');
     if (authHeader) {
       headers['Authorization'] = authHeader;
     }
-
-    // Copy cookie จาก client request (ถ้ามี)
-    const cookieHeader = request.headers.get('cookie');
+    
+    // ส่ง Cookie header (ถ้ามี)
+    const cookieHeader = req.headers.get('cookie');
     if (cookieHeader) {
       headers['Cookie'] = cookieHeader;
     }
-
-    console.log(`[API] Fetching categories products: ${backendUrl}`);
-
-    const response = await fetch(backendUrl, {
-      method: 'GET',
+    
+    const res = await fetch(url, {
       headers,
       cache: 'no-store',
     });
-
-    if (!response.ok) {
-      console.error(`[API] Backend error: ${response.status} ${response.statusText}`);
-
-      // ถ้า 401 ลองเรียกแบบไม่ใส่ auth (เผื่อเป็น public endpoint)
-      if (response.status === 401) {
-        console.log('[API] Retrying without authentication...');
-        const retryResponse = await fetch(backendUrl, {
-          method: 'GET',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
+    
+    console.log(`[Categories] <- ${res.status} in ${Date.now() - started}ms`);
+    
+    // ถ้าได้ 401 ลอง fallback: ดึงสินค้าทั้งหมดแล้วกรองเอง
+    if (res.status === 401) {
+      console.log(`[Categories] 401 received, trying fallback via /api/products`);
+      
+      try {
+        const productsUrl = `${BASE}/api/products`;
+        const productsRes = await fetch(productsUrl, {
+          headers: { 'Accept': 'application/json' },
           cache: 'no-store',
         });
-
-        if (retryResponse.ok) {
-          const data = await retryResponse.json();
-          return Response.json(data);
+        
+        if (productsRes.ok) {
+          const allProducts = await productsRes.json();
+          const items = Array.isArray(allProducts) ? allProducts : allProducts?.items || [];
+          
+          // กรองสินค้าตาม category
+          const filtered = items.filter((p: any) => {
+            const cat = String(p.category || '').toLowerCase();
+            const target = slug.toLowerCase();
+            return cat === target;
+          });
+          
+          console.log(`[Categories] Fallback success: ${filtered.length} products in "${slug}"`);
+          return NextResponse.json({ 
+            success: true, 
+            products: filtered,
+            _fallback: true 
+          });
         }
+      } catch (fallbackError) {
+        console.error('[Categories] Fallback failed:', fallbackError);
       }
-
-      return Response.json(
-        { error: `Backend returned ${response.status}: ${response.statusText}` },
-        { status: response.status }
-      );
     }
-
-    const data = await response.json();
-    return Response.json(data);
-  } catch (error) {
-    console.error('[API] Error fetching category products:', error);
-    return Response.json(
-      { error: 'Failed to fetch category products' },
-      { status: 500 }
-    );
+    
+    const data = await res.json().catch(() => ({}));
+    return NextResponse.json(data, { status: res.status });
+    
+  } catch (e) {
+    console.error('[Categories] Error:', e);
+    return NextResponse.json({ 
+      success: false, 
+      message: 'proxy error',
+      error: e instanceof Error ? e.message : String(e)
+    }, { status: 502 });
   }
 }
