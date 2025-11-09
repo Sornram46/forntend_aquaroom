@@ -1,24 +1,25 @@
 import Link from 'next/link';
 import ProductGrid from '@/components/ProductGrid';
+import { headers } from 'next/headers';
 import React from 'react';
 
-function absoluteSelfBase() {
-  // Prefer explicit public base when provided
-  const pub = process.env.NEXT_PUBLIC_BASE_URL;
-  if (pub && (pub.startsWith('http://') || pub.startsWith('https://'))) return pub.replace(/\/$/, '');
-  // Fallback to Vercel/Next provided URL via headers at runtime
-  // In server components, URL isn't directly available here, so use VERCEL_URL if present
-  const vercel = process.env.VERCEL_URL; // e.g. my-app.vercel.app
-  if (vercel) {
-    if (vercel.startsWith('http')) return vercel.replace(/\/$/, '');
-    return `https://${vercel}`.replace(/\/$/, '');
-  }
-  return '';
+export const dynamic = 'force-dynamic';
+
+async function baseUrl() {
+  const h = await headers();
+  const host = h.get('x-forwarded-host') || h.get('host');
+  const proto = h.get('x-forwarded-proto') || 'https';
+  return `${proto}://${host}`;
 }
 
 async function getData(slug: string) {
-  const r = await fetch(`/api/categories/${encodeURIComponent(slug)}/products`, { cache: 'no-store' });
-  return r.json();
+  const url = `${await baseUrl()}/api/categories/${encodeURIComponent(slug)}/products`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Fetch failed ${res.status}: ${text}`);
+  }
+  return res.json();
 }
 
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
