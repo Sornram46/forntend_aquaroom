@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import ProductGrid from '@/components/ProductGrid';
+import React from 'react';
 
 function absoluteSelfBase() {
   // Prefer explicit public base when provided
@@ -15,17 +16,17 @@ function absoluteSelfBase() {
   return '';
 }
 
+async function getData(slug: string) {
+  const r = await fetch(`/api/categories/${encodeURIComponent(slug)}/products`, { cache: 'no-store' });
+  return r.json();
+}
+
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const decoded = decodeURIComponent(slug || '');
 
-  const self = absoluteSelfBase();
-  const base = self || '';
-  const res = await fetch(`${base}/api/categories/${encodeURIComponent(decoded)}/products`, {
-    cache: 'no-store',
-  });
-
-  if (!res.ok) {
+  const data = await getData(decoded);
+  if (!data?.success) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-10">
         <h1 className="text-2xl font-bold">ไม่พบหมวดหมู่</h1>
@@ -37,9 +38,8 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     );
   }
 
-  const data = await res.json().catch(() => ({} as any));
-  const category = data?.category;
-  const products = Array.isArray(data?.products) ? data.products : [];
+  const category = data.category;
+  const products = Array.isArray(data.products) ? data.products : [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
