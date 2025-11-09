@@ -8,57 +8,49 @@ function resolveBase() {
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.ADMIN_API_URL ||
     process.env.BACKEND_URL ||
-    (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://backend-aquaroom.vercel.app');
+    (process.env.NODE_ENV === 'development'
+      ? 'http://localhost:5000'
+      : 'https://backend-aquaroom.vercel.app');
   if (!raw) return 'https://backend-aquaroom.vercel.app';
-  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-  if (raw.startsWith('localhost') || raw.startsWith('127.0.0.1')) return `http://${raw}`;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^(localhost|127\.0\.0\.1)/i.test(raw)) return `http://${raw}`;
   return `https://${raw}`;
 }
+const normalizeBase = (u: string) => u.replace(/\/+$/, '');
+const sameHost = (base: string, host: string) => {
+  try { return new URL(base).host.toLowerCase() === host.toLowerCase(); } catch { return false; }
+};
 
-function toSlug(name: string) {
-  return String(name || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9ก-๙\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-}
-
-function mapCategory(c: any): any {
-  const children = Array.isArray(c?.children) ? c.children.map(mapCategory) : [];
-  return {
-    id: Number(c?.id ?? c?.category_id ?? 0),
-    name: String(c?.name ?? c?.title ?? 'หมวดหมู่'),
-    slug: String(c?.slug ?? c?.seo_slug ?? toSlug(c?.name ?? '')).toLowerCase(),
-    image_url: c?.image_url ?? c?.image_url_cate ?? c?.icon ?? null,
-    products_count: Number(c?.products_count ?? c?._count?.product_categories ?? 0),
-    children,
-  };
-}
-
-export async function GET(_req: NextRequest) {
-  const BASE = resolveBase();
-  const candidates = [`${BASE}/api/categories/tree`, `${BASE}/api/categories`];
-
-  for (const url of candidates) {
-    try {
-      const started = Date.now();
-      console.log(`GET /api/categories/tree -> ${url}`);
-      const res = await fetch(url, { headers: { accept: 'application/json' }, cache: 'no-store' });
-      console.log(`GET /api/categories/tree <- ${res.status} in ${Date.now() - started}ms from ${url}`);
-      if (!res.ok) continue;
-      const raw = await res.json().catch(() => null);
-      if (!raw) continue;
-
-      const list = Array.isArray(raw) ? raw : (raw.categories ?? raw.data?.categories ?? raw.data ?? []);
-      const normalized = Array.isArray(list) ? list.map(mapCategory) : [];
-      return NextResponse.json({ success: true, categories: normalized });
-    } catch {
-      // try next
-    }
+export async function GET(req: NextRequest) {
+  const base = normalizeBase(resolveBase());
+  const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || '';
+  if (sameHost(base, host)) {
+    return NextResponse.json(
+      { success: false, message: 'API base URL misconfigured (points to frontend)' },
+      { status: 500 }
+    );
   }
 
-  return NextResponse.json({ success: true, categories: [] }, { status: 200 });
+  const url = `${base}/api/categories/tree`;
+  const started = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    console.log(`Proxy -> ${url}`);
+    const res = await fetch(url, {
+      headers: { accept: 'application/json' },
+      cache: 'no-store',
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
+    console.log(`Proxy <- ${res.status} ${Date.now() - started}ms ${url}`);
+
+    const text = await res.text();
+    let data: any;
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { success: false, raw: text }; }
+
+    return NextResponse.json(data, { status: res.status });
+  } catch (e) {
+    console.error('Proxy error tree:', e);
+    return NextResponse.json({ success: false, message: 'proxy error' }, { status: 502 });
+  }
 }
