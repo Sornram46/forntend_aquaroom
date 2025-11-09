@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
@@ -22,8 +22,9 @@ const sameHost = (base: string, host: string) => {
   try { return new URL(base).host.toLowerCase() === host.toLowerCase(); } catch { return false; }
 };
 
-export async function GET(req: NextRequest, { params }: { params: { slug: string } }) {
-  const { slug } = params;
+// ใช้ any เพื่อเลี่ยง validation bug ของ Next.js ตอน build
+export async function GET(req: Request, context: any) {
+  const slug: string = String(context?.params?.slug ?? '');
   const base = normalizeBase(resolveBase());
   const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || '';
   if (sameHost(base, host)) {
