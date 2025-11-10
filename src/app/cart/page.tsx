@@ -51,7 +51,7 @@ export default function CartPage() {
 
     setIsCalculatingShipping(true);
     try {
-      const response = await fetch('/api/shipping/calculate', {
+      const response = await fetch('/api/calculate-shipping', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,27 +63,31 @@ export default function CartPage() {
         })
       });
 
-      const data = await response.json().catch(() => null);
+      console.log('🚚 Response status:', response.status);
+      const data = await response.json();
+      console.log('🚚 Response data:', data);
 
-      if (response.ok && data && typeof data.shippingCost !== 'undefined') {
-        setShippingCost(Number(data.shippingCost));
+      if (response.ok && data?.success) {
+        // ✅ อ่านทั้ง 2 key (shippingCost หรือ data.totalShippingCost)
+        const calculatedCost = data.shippingCost ?? data.data?.totalShippingCost ?? 0;
+        console.log('✅ Using API shipping cost:', calculatedCost);
+        setShippingCost(Number(calculatedCost));
       } else {
+        console.warn('⚠️ API failed, using fallback');
         const special = cartItems.some((it) => {
           const name = String(it.name ?? '').toLowerCase();
           const cat = String(it.category ?? '').toLowerCase();
-          // @ts-ignore
-          const flag = it.specialShipping ?? it.special_shipping ?? false;
+          const flag = (it as any).specialShipping ?? (it as any).special_shipping ?? false;
           return flag || name.includes('ปลากัด') || name.includes('betta') || cat.includes('ปลากัด') || cat.includes('betta');
         });
         setShippingCost(special ? 150 : 50);
       }
     } catch (error) {
-      console.error('Error calculating shipping:', error);
+      console.error('❌ Error calculating shipping:', error);
       const special = cartItems.some((it) => {
         const name = String(it.name ?? '').toLowerCase();
         const cat = String(it.category ?? '').toLowerCase();
-        // @ts-ignore
-        const flag = it.specialShipping ?? it.special_shipping ?? false;
+        const flag = (it as any).specialShipping ?? (it as any).special_shipping ?? false;
         return flag || name.includes('ปลากัด') || name.includes('betta') || cat.includes('ปลากัด') || cat.includes('betta');
       });
       setShippingCost(special ? 150 : 50);
