@@ -44,57 +44,78 @@ export default function CartPage() {
 
   // ฟังก์ชันคำนวณค่าจัดส่ง
   const calculateShipping = useCallback(async () => {
-    if (cartItems.length === 0) {
-      setShippingCost(0);
-      return;
-    }
+  if (cartItems.length === 0) {
+    setShippingCost(0);
+    return;
+  }
 
-    setIsCalculatingShipping(true);
-    try {
-      const response = await fetch('/api/calculate-shipping', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
-        },
-        body: JSON.stringify({
-          items: cartItems,
-          subtotal: subtotal
-        })
-      });
-
-      console.log('🚚 Response status:', response.status);
-      const data = await response.json();
-      console.log('🚚 Response data:', data);
-
-      if (response.ok && data?.success) {
-        // ✅ อ่านทั้ง 2 key (shippingCost หรือ data.totalShippingCost)
-        const calculatedCost = data.shippingCost ?? data.data?.totalShippingCost ?? 0;
-        console.log('✅ Using API shipping cost:', calculatedCost);
-        setShippingCost(Number(calculatedCost));
+   setIsCalculatingShipping(true);
+  try {
+    // ✅ จัดกลุ่ม items ตาม product id + รวม quantity
+    const groupedItems = cartItems.reduce((acc, item) => {
+      const existing = acc.find(i => i.id === item.id);
+      if (existing) {
+        // รวม quantity ของสินค้าเดียวกัน
+        existing.quantity += item.quantity;
       } else {
-        console.warn('⚠️ API failed, using fallback');
-        const special = cartItems.some((it) => {
-          const name = String(it.name ?? '').toLowerCase();
-          const cat = String(it.category ?? '').toLowerCase();
-          const flag = (it as any).specialShipping ?? (it as any).special_shipping ?? false;
-          return flag || name.includes('ปลากัด') || name.includes('betta') || cat.includes('ปลากัด') || cat.includes('betta');
-        });
-        setShippingCost(special ? 150 : 50);
+        // เพิ่ม item ใหม่
+        acc.push({ ...item });
       }
-    } catch (error) {
-      console.error('❌ Error calculating shipping:', error);
-      const special = cartItems.some((it) => {
+      return acc;
+    }, [] as typeof cartItems);
+
+    console.log('🔵 Original items:', cartItems.length);
+    console.log('🟢 Grouped items:', groupedItems.length);
+    console.log('📦 Items detail:', groupedItems.map(i => ({
+      id: i.id,
+      name: i.name,
+      quantity: i.quantity
+    })));
+
+    const response = await fetch('/api/calculate-shipping', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
+      },
+      body: JSON.stringify({
+        items: groupedItems, // ✅ ส่ง items ที่รวมแล้ว
+        subtotal: subtotal
+      })
+    });
+
+    console.log('📥 Response status:', response.status);
+    const data = await response.json();
+    console.log('📥 Response data:', data);
+
+    if (response.ok && data?.success) {
+      const calculatedCost = data.shippingCost ?? data.data?.totalShippingCost ?? 0;
+      console.log('✅ Final shipping cost:', calculatedCost);
+      setShippingCost(Number(calculatedCost));
+    } else {
+      console.warn('⚠️ API failed, using fallback');
+      const special = groupedItems.some((it) => {
         const name = String(it.name ?? '').toLowerCase();
         const cat = String(it.category ?? '').toLowerCase();
         const flag = (it as any).specialShipping ?? (it as any).special_shipping ?? false;
         return flag || name.includes('ปลากัด') || name.includes('betta') || cat.includes('ปลากัด') || cat.includes('betta');
       });
       setShippingCost(special ? 150 : 50);
-    } finally {
-      setIsCalculatingShipping(false);
     }
-  }, [cartItems, subtotal]);
+  } catch (error) {
+    console.error('❌ Error calculating shipping:', error);
+    const special = cartItems.some((it) => {
+      const name = String(it.name ?? '').toLowerCase();
+      const cat = String(it.category ?? '').toLowerCase();
+      const flag = (it as any).specialShipping ?? (it as any).special_shipping ?? false;
+      return flag || name.includes('ปลากัด') || name.includes('betta') || cat.includes('ปลากัด') || cat.includes('betta');
+    });
+    setShippingCost(special ? 150 : 50);
+  } finally {
+    setIsCalculatingShipping(false);
+  }
+}, [cartItems, subtotal]);
+
 
   useEffect(() => {
     calculateShipping();
