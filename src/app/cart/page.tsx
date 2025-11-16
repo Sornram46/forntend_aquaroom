@@ -129,13 +129,10 @@ export default function CartPage() {
       console.log('🎫 Applying coupon:', couponCode);
       console.log('🎫 Order total:', subtotal);
       
-      // ทดสอบ API ก่อน
-      const testResponse = await fetch('/api/coupons/validate');
-      console.log('🎫 API test response:', testResponse.status);
-      
-      if (!testResponse.ok) {
-        throw new Error('API endpoint not available');
-      }
+      // ทดสอบ API ก่อนด้วย HEAD (หลีกเลี่ยง GET 400 เมื่อไม่มี code)
+      const testResponse = await fetch('/api/coupons/validate', { method: 'HEAD' });
+      console.log('🎫 API test response (HEAD):', testResponse.status);
+      if (!testResponse.ok) throw new Error('API endpoint not available');
       
       // เรียกใช้ API ตรวจสอบคูปอง
       const response = await fetch('/api/coupons/validate', {
@@ -157,10 +154,10 @@ export default function CartPage() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('🎫 Error response text:', errorText);
-        
         try {
           const errorJson = JSON.parse(errorText);
-          throw new Error(errorJson.error || `Server error: ${response.status}`);
+          // prefer message -> error for better UX
+          throw new Error(errorJson.message || errorJson.error || `Server error: ${response.status}`);
         } catch (parseError) {
           throw new Error(`Server error: ${response.status} - ${errorText.substring(0, 100)}`);
         }
