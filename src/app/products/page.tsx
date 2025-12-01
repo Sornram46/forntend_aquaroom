@@ -19,7 +19,7 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [categories, setCategories] = useState<string[]>([]);
+const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
 
   // โหลดข้อมูลสินค้า
   useEffect(() => {
@@ -63,6 +63,7 @@ export default function ProductsPage() {
           category: String(p.category ?? p.category_name ?? 'ทั่วไป'),
           stock: Number(p.stock ?? p.quantity ?? 0),
         }));
+        
 
         const missing = mapped.filter(x => !x.imageUrl);
         if (missing.length) {
@@ -71,7 +72,6 @@ export default function ProductsPage() {
 
         setProducts(mapped);
         setFilteredProducts(mapped);
-        setCategories(['all', ...Array.from(new Set(mapped.map(p => p.category)))]);
       } catch (error) {
         console.error('Error loading products:', error);
       } finally {
@@ -80,6 +80,21 @@ export default function ProductsPage() {
     }
     fetchProducts();
   }, []);
+
+
+  useEffect(() => {
+  async function fetchCategories() {
+    try {
+      const res = await fetch('/api/categories');
+      if (!res.ok) throw new Error('Failed to fetch categories');
+      const data = await res.json();
+      setCategories(data);
+    } catch {
+      setCategories([]);
+    }
+  }
+  fetchCategories();
+}, []);
 
   // กรองสินค้าเมื่อค่าการค้นหาหรือหมวดหมู่เปลี่ยนแปลง
   useEffect(() => {
@@ -146,12 +161,12 @@ export default function ProductsPage() {
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="border border-gray-300 rounded-md py-2 pl-3 pr-8 text-xs sm:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               >
-                <option value="all">ทั้งหมด</option>
-                {categories.map((category, index) => (
-                  <option key={index} value={category}>
-                    {category}
-                  </option>
-                ))}
+               <option value="all">ทั้งหมด</option>
+{categories.map((cat) => (
+  <option key={cat.id} value={cat.name}>
+    {cat.name}
+  </option>
+))}
               </select>
             </div>
           </div>

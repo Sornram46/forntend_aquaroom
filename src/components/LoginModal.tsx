@@ -227,13 +227,11 @@ export default function LoginModal({ isOpen, onClose, redirectAfterLogin }: Logi
       return;
     }
     
-    const success = await register(registerName, registerEmail, registerPassword);
-    if (success) {
-      onClose();
-      if (redirectAfterLogin) {
-        window.location.href = redirectAfterLogin;
-      }
-    } else {
+     const success = await register(registerName, registerEmail, registerPassword);
+  if (success) {
+    setActiveTab('login'); // เปลี่ยนไปยังแถบเข้าสู่ระบบ
+    setRegisterError('');
+  } else {
       setRegisterError('ไม่สามารถสมัครสมาชิกได้ โปรดลองอีกครั้ง');
     }
   };
