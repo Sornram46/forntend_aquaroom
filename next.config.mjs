@@ -26,6 +26,7 @@ const nextConfig = {
       },
     ];
   },
+  eslint: { ignoreDuringBuilds: true }, // ใช้แทน --no-lint
 };
 
 export default nextConfig;
