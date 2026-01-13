@@ -3,7 +3,7 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   images: {
     deviceSizes: [320, 420, 640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [32, 64, 128, 256], // ลดจาก 8 เหลือ 4
+    imageSizes:[16, 32, 48, 64, 96, 128, 256, 384],
     formats: ['image/webp'], // ใช้ webp เท่านั้น (เล็กกว่า)
     minimumCacheTTL: 86400, // cache 1 วัน
     remotePatterns: [
@@ -11,6 +11,7 @@ const nextConfig = {
       { protocol: 'https', hostname: '**.supabase.co', pathname: '/storage/v1/object/public/**' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com', pathname: '/**' },
       { protocol: 'http', hostname: 'localhost', port: '5000', pathname: '/**' },
+      { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/**' }, // เพิ่มบรรทัดนี้
     ],
   },
   async headers() {
