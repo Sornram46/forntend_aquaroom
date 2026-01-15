@@ -54,6 +54,7 @@ export async function fetchCategories() {
       products_count: cat.products_count ?? 0,
       image_url_cate: cat.image_url ?? '', // แปลงชื่อฟิลด์จาก API ให้ตรงกับ component
       children: cat.children ?? [],
+       is_active: cat.is_active ?? true,
     }));
   } catch (e) {
     console.error('Error fetching categories:', e);
