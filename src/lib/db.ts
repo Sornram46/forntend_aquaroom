@@ -41,9 +41,20 @@ async function jsonOr<T>(res: Response, fallback: T): Promise<T> {
 
 export async function fetchCategories() {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/categories`, { cache: 'no-store' });
+    const res = await fetch(`${API_BASE_URL}/api/categories/tree`, { cache: 'no-store' });
     if (!res.ok) return [];
-    return await jsonOr(res, []);
+
+    const payload = await jsonOr(res, { success: false, categories: [] });
+    const categories = Array.isArray(payload?.categories) ? payload.categories : [];
+
+    return categories.map((cat: any) => ({
+      id: cat.id,
+      name: cat.name,
+      slug: cat.slug,
+      products_count: cat.products_count ?? 0,
+      image_url_cate: cat.image_url ?? '', // แปลงชื่อฟิลด์จาก API ให้ตรงกับ component
+      children: cat.children ?? [],
+    }));
   } catch (e) {
     console.error('Error fetching categories:', e);
     return [];
