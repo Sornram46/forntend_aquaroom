@@ -26,6 +26,7 @@ function normalizeProduct(src: any) {
 
   const id = p.id ?? p._id ?? p.productId ?? p.sku ?? null;
   const name = p.name ?? p.title ?? p.product_name ?? '';
+  const description = p.description ?? p.product_description ?? p.desc ?? p.details ?? p.content ?? '';
 
   const priceRaw = p.price ?? p.unit_price ?? p.sale_price ?? p.regular_price ?? 0;
   const price = typeof priceRaw === 'string' ? parseFloat(priceRaw) || 0 : Number(priceRaw) || 0;
@@ -50,9 +51,10 @@ function normalizeProduct(src: any) {
   const [imageUrl, imageUrlTwo, imageUrlThree, imageUrlFour] = images;
 
   return {
-    ...p,
-    id,
+    ...p,           // spread ก่อน
+    id,             // แล้ว override ทีหลัง
     name,
+    description,    // ← ต้องอยู่ หลัง ...p เสมอ
     price,
     stock,
     quantity: typeof p.quantity !== 'undefined' ? p.quantity : stock,

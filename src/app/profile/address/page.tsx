@@ -497,24 +497,33 @@ function AddressPageContent() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto"
             onClick={() => setIsModalOpen(false)}
           >
             <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
-              className="bg-white rounded-lg shadow-xl max-w-2xl w-full overflow-hidden"
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-lg shadow-xl w-full max-w-2xl my-4 sm:my-0 overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="border-b border-gray-200 px-6 py-4">
-                <h2 className="text-lg font-medium text-gray-900">
+              <div className="border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+                <h2 className="text-base sm:text-lg font-medium text-gray-900">
                   {isEditMode ? "แก้ไขที่อยู่" : "เพิ่มที่อยู่ใหม่"}
                 </h2>
+                {/* ปุ่มปิด modal สำหรับ mobile */}
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 sm:hidden"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
 
               <form onSubmit={handleSubmit}>
-                <div className="p-6 space-y-4">
+                <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 max-h-[70vh] sm:max-h-[75vh] overflow-y-auto">
                   {/* ชื่อ */}
                   <div>
                     <label
@@ -530,7 +539,7 @@ function AddressPageContent() {
                       value={formData.name}
                       onChange={handleChange}
                       required
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                     />
                   </div>
 
@@ -551,7 +560,7 @@ function AddressPageContent() {
                       required
                       pattern="[0-9]{10}"
                       title="กรุณากรอกเบอร์โทรศัพท์ 10 หลัก"
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                     />
                   </div>
 
@@ -570,7 +579,7 @@ function AddressPageContent() {
                       onChange={handleChange}
                       required
                       rows={2}
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                     />
                   </div>
 
@@ -588,12 +597,12 @@ function AddressPageContent() {
                       id="address_line2"
                       value={formData.address_line2}
                       onChange={handleChange}
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                     />
                   </div>
 
                   {/* แถวของแขวง/ตำบลและเขต/อำเภอ */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label
                         htmlFor="district"
@@ -608,7 +617,7 @@ function AddressPageContent() {
                         value={formData.district}
                         onChange={handleChange}
                         required
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                       />
                     </div>
 
@@ -626,13 +635,13 @@ function AddressPageContent() {
                         value={formData.city}
                         onChange={handleChange}
                         required
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                       />
                     </div>
                   </div>
 
                   {/* แถวของจังหวัดและรหัสไปรษณีย์ */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label
                         htmlFor="province"
@@ -646,7 +655,7 @@ function AddressPageContent() {
                         value={formData.province}
                         onChange={handleChange}
                         required
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                       >
                         <option value="">เลือกจังหวัด</option>
                         {provinces.map((province) => (
@@ -673,7 +682,7 @@ function AddressPageContent() {
                         required
                         pattern="[0-9]{5}"
                         title="กรุณากรอกรหัสไปรษณีย์ 5 หลัก"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                       />
                     </div>
                   </div>
@@ -697,7 +706,7 @@ function AddressPageContent() {
                   </div>
                 </div>
 
-                <div className="bg-gray-50 px-6 py-3 flex items-center justify-end space-x-3">
+                <div className="bg-gray-50 px-4 sm:px-6 py-3 flex items-center justify-end space-x-3 sticky bottom-0">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
