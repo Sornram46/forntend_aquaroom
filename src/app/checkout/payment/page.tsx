@@ -71,6 +71,40 @@ export default function PaymentPage() {
 
   const subtotal = getCartTotal();
   const [shippingCost, setShippingCost] = useState(0);
+  const [shippingLoading, setShippingLoading] = useState(false);
+
+  // เพิ่ม useEffect สำหรับคำนวณค่าจัดส่ง
+  useEffect(() => {
+    const calculateShipping = async () => {
+      if (!shippingAddress || cartItems.length === 0) {
+        setShippingCost(0);
+        return;
+      }
+      setShippingLoading(true);
+      try {
+        const response = await fetch('/api/calculate-shipping', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: cartItems.map(item => ({
+              id: item.id,
+              quantity: item.quantity,
+            })),
+            subtotal,
+            province: shippingAddress.province,
+          }),
+        });
+        const data = await response.json();
+        setShippingCost(data.shippingCost ?? 0);
+      } catch (e) {
+        setShippingCost(0);
+      } finally {
+        setShippingLoading(false);
+      }
+    };
+    calculateShipping();
+  }, [shippingAddress, cartItems, subtotal]);
+
   // แก้ไขการคำนวณยอดรวม
   const total = subtotal - discount + shippingCost;
 
@@ -1143,8 +1177,14 @@ const renderBankDetails = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-600">ค่าจัดส่ง</span>
                     <span className="text-gray-800 font-medium">
-                      {shippingCost === 0 ? 'ฟรี' : `${shippingCost} บาท`}
-                    </span>
+                        {shippingLoading ? (
+                          <span className="text-gray-400 text-sm">กำลังคำนวณ...</span>
+                        ) : shippingCost === 0 ? (
+                          <span className="text-green-600">ฟรี</span>
+                        ) : (
+                          `฿${shippingCost.toLocaleString()}`
+                        )}
+                      </span>
                   </div>
 
                   {/* เพิ่มแสดงส่วนลด */}
