@@ -9,6 +9,7 @@ import Swal from 'sweetalert2';
 import Image from 'next/image';
 import { toAbsoluteUrl } from '@/lib/db';
 import { validateSlipWithOCR, validateSlipQuick, SlipValidationResult } from '@/lib/slipValidator';
+import { generatePromptPayQR } from '@/lib/promptpay';
 
 interface Address {
   id: number;
@@ -28,6 +29,10 @@ interface PaymentSettings {
   bank_transfer_enabled: boolean;
   credit_card_enabled: boolean;
   cod_enabled: boolean;
+  promptpay_enabled: boolean;
+  promptpay_id: string | null;
+  promptpay_name: string | null;
+  promptpay_qr_type: 'phone' | 'tax_id';
   cod_fee: number;
   cod_maximum: number;
   payment_timeout_hours: number;
@@ -41,6 +46,137 @@ interface PaymentSettings {
     bank_icon?: string | null;
     branch?: string | null;
   }>;
+}
+
+// PromptPay QR Display Component
+function PromptPayQRDisplay({ 
+  amount, 
+  promptpayId, 
+  promptpayName, 
+  promptpayType,
+  paymentTimeoutHours 
+}: { 
+  amount: number; 
+  promptpayId: string; 
+  promptpayName: string; 
+  promptpayType: 'phone' | 'tax_id';
+  paymentTimeoutHours: number;
+}) {
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    const generateQR = async () => {
+      if (!promptpayId) {
+        setError('ไม่พบข้อมูล PromptPay กรุณาติดต่อเจ้าหน้าที่');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError('');
+        
+        const qrUrl = await generatePromptPayQR({
+          id: promptpayId,
+          type: promptpayType,
+          amount: amount,
+        });
+        
+        setQrCodeUrl(qrUrl);
+      } catch (err) {
+        console.error('Error generating PromptPay QR:', err);
+        setError('ไม่สามารถสร้าง QR Code ได้ กรุณาลองใหม่อีกครั้ง');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    generateQR();
+  }, [amount, promptpayId, promptpayType]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p className="text-sm text-red-800">{error}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+      <div className="flex flex-col items-center">
+        {/* QR Code */}
+        <div className="bg-white p-4 rounded-lg shadow-md mb-4">
+          {qrCodeUrl && (
+            <Image
+              src={qrCodeUrl}
+              alt="PromptPay QR Code"
+              width={300}
+              height={300}
+              className="rounded-lg"
+            />
+          )}
+        </div>
+
+        {/* ข้อมูล PromptPay */}
+        <div className="text-center space-y-2">
+          <div className="flex items-center justify-center space-x-2">
+            <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+            </svg>
+            <p className="text-lg font-semibold text-gray-800">
+              {promptpayName || 'PromptPay'}
+            </p>
+          </div>
+          
+          <p className="text-sm text-gray-600">
+            {promptpayType === 'phone' ? 'เบอร์โทร' : 'เลขประจำตัวผู้เสียภาษี'}: {promptpayId}
+          </p>
+          
+          <div className="mt-4 pt-4 border-t border-blue-200">
+            <p className="text-xs text-gray-500 mb-1">ยอดชำระ</p>
+            <p className="text-2xl font-bold text-blue-600">
+              ฿{amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+        </div>
+
+        {/* คำแนะนำ */}
+        <div className="mt-6 bg-white rounded-lg p-4 w-full">
+          <h4 className="text-sm font-semibold text-gray-800 mb-2">วิธีการชำระเงิน:</h4>
+          <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
+            <li>เปิดแอปธนาคารหรือแอป Mobile Banking</li>
+            <li>เลือกเมนู "สแกน QR" หรือ "PromptPay"</li>
+            <li>สแกน QR Code ด้านบน</li>
+            <li>ตรวจสอบยอดเงินและกดยืนยันการชำระ</li>
+            <li>แนบหลักฐานการโอนเงินด้านล่าง (ถ้ามี)</li>
+          </ol>
+        </div>
+
+        {/* หมายเหตุ */}
+        <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 w-full">
+          <div className="flex items-start">
+            <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <p className="text-xs text-yellow-800">
+              กรุณาชำระเงินภายใน {paymentTimeoutHours} ชั่วโมง มิฉะนั้นคำสั่งซื้อจะถูกยกเลิก
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function PaymentPage() {
@@ -59,7 +195,7 @@ export default function PaymentPage() {
 
   const [loading, setLoading] = useState(true);
   const [shippingAddress, setShippingAddress] = useState<Address | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'credit_card' | 'cod'>('bank_transfer');
+  const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'credit_card' | 'cod' | 'promptpay'>('bank_transfer');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
@@ -67,7 +203,7 @@ export default function PaymentPage() {
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
-  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<Array<'bank_transfer' | 'credit_card' | 'cod'>>([]);
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<Array<'bank_transfer' | 'credit_card' | 'cod' | 'promptpay'>>([]);
 
   const subtotal = getCartTotal();
   const [shippingCost, setShippingCost] = useState(0);
@@ -166,6 +302,7 @@ export default function PaymentPage() {
     const fetchPaymentSettings = async () => {
       try {
         console.log('🔄 [DEBUG] Starting to fetch payment settings...');
+        console.log('🌐 [DEBUG] Fetching from URL: /api/payment-settings');
         console.time('PaymentSettings Load Time');
         
         const response = await fetch('/api/payment-settings');
@@ -182,6 +319,12 @@ export default function PaymentPage() {
             enabled: data.data.cod_enabled,
             fee: data.data.cod_fee,
             maximum: data.data.cod_maximum
+          });
+          console.log('💳 [DEBUG] PromptPay settings:', {
+            enabled: data.data.promptpay_enabled,
+            id: data.data.promptpay_id,
+            name: data.data.promptpay_name,
+            type: data.data.promptpay_qr_type
           });
           
           // ตรวจสอบ icon ของแต่ละธนาคาร
@@ -224,7 +367,14 @@ export default function PaymentPage() {
           setPaymentSettings(data.data);
           
           // กำหนดวิธีการชำระเงินที่ใช้ได้
-          const methods: Array<'bank_transfer' | 'credit_card' | 'cod'> = [];
+          const methods: Array<'bank_transfer' | 'credit_card' | 'cod' | 'promptpay'> = [];
+          
+          console.log('🔍 [DEBUG] Checking payment methods availability...');
+          console.log('  - bank_transfer_enabled:', data.data.bank_transfer_enabled);
+          console.log('  - credit_card_enabled:', data.data.credit_card_enabled);
+          console.log('  - promptpay_enabled:', data.data.promptpay_enabled);
+          console.log('  - cod_enabled:', data.data.cod_enabled);
+          
           if (data.data.bank_transfer_enabled) {
             methods.push('bank_transfer');
             console.log('✅ [DEBUG] Bank transfer enabled');
@@ -232,6 +382,10 @@ export default function PaymentPage() {
           if (data.data.credit_card_enabled) {
             methods.push('credit_card');
             console.log('✅ [DEBUG] Credit card enabled');
+          }
+          if (data.data.promptpay_enabled) {
+            methods.push('promptpay');
+            console.log('✅ [DEBUG] PromptPay enabled');
           }
           if (data.data.cod_enabled) {
             methods.push('cod');
@@ -267,6 +421,10 @@ export default function PaymentPage() {
           bank_transfer_enabled: true,
           credit_card_enabled: false,
           cod_enabled: true,
+          promptpay_enabled: false,
+          promptpay_id: null,
+          promptpay_name: null,
+          promptpay_qr_type: 'phone',
           cod_fee: 30,
           cod_maximum: 0,
           payment_timeout_hours: 24,
@@ -454,7 +612,7 @@ export default function PaymentPage() {
     reader.readAsDataURL(file);
   };
   const handlePayment = async () => {
-    if (paymentMethod === 'bank_transfer' && !paymentProof) {
+    if ((paymentMethod === 'bank_transfer' || paymentMethod === 'promptpay') && paymentSettings?.require_payment_proof && !paymentProof) {
       setValidationError('กรุณาแนบหลักฐานการโอนเงิน');
       document.getElementById('payment-proof-section')?.scrollIntoView({ behavior: 'smooth' });
       return;
@@ -485,7 +643,7 @@ export default function PaymentPage() {
       let paymentProofUrl = null;
 
       // อัปโหลดหลักฐานการโอนไปยัง Supabase ก่อน (ถ้ามี)
-      if (paymentMethod === 'bank_transfer' && paymentProof) {
+      if ((paymentMethod === 'bank_transfer' || paymentMethod === 'promptpay') && paymentProof) {
         console.log('📤 Uploading payment proof to Supabase...');
         
         const uploadFormData = new FormData();
@@ -648,6 +806,24 @@ export default function PaymentPage() {
             <div className="ml-3 flex-grow">
               <span className="block font-medium text-gray-800">บัตรเครดิต/เดบิต</span>
               <span className="text-sm text-gray-500">ชำระเงินด้วยบัตรเครดิตหรือเดบิตทุกธนาคาร</span>
+            </div>
+          </label>
+        )}
+
+        {/* PromptPay */}
+        {availablePaymentMethods.includes('promptpay') && (
+          <label className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition">
+            <input
+              type="radio"
+              name="payment"
+              value="promptpay"
+              checked={paymentMethod === 'promptpay'}
+              onChange={() => setPaymentMethod('promptpay')}
+              className="h-5 w-5 text-indigo-600 focus:ring-indigo-500"
+            />
+            <div className="ml-3 flex-grow">
+              <span className="block font-medium text-gray-800">PromptPay (พร้อมเพย์)</span>
+              <span className="text-sm text-gray-500">สแกน QR Code เพื่อชำระเงิน</span>
             </div>
           </label>
         )}
@@ -967,6 +1143,163 @@ const renderBankDetails = () => {
 
                 {paymentMethod === 'bank_transfer' && renderBankDetails()}
 
+                {paymentMethod === 'promptpay' && (
+                  <div className="mt-6 border-t border-gray-200 pt-4">
+                    <h3 className="text-sm font-medium text-gray-700 mb-3">สแกน QR Code เพื่อชำระเงิน</h3>
+                    <PromptPayQRDisplay
+                      amount={total}
+                      promptpayId={paymentSettings?.promptpay_id || ''}
+                      promptpayName={paymentSettings?.promptpay_name || ''}
+                      promptpayType={paymentSettings?.promptpay_qr_type || 'phone'}
+                      paymentTimeoutHours={paymentSettings?.payment_timeout_hours || 24}
+                    />
+                  </div>
+                )}
+
+                {paymentMethod === 'promptpay' && paymentSettings?.require_payment_proof && (
+                  <div id="payment-proof-section" className="mt-4">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">
+                      แนบหลักฐานการโอนเงิน <span className="text-red-500">*</span>
+                    </h3>
+                    
+                    {/* แสดงผลการตรวจสอบ */}
+                    {slipValidationResult && (
+                      <div className={`mb-4 p-3 rounded-md ${
+                        slipValidationResult.isValid 
+                          ? 'bg-green-50 border border-green-200' 
+                          : 'bg-yellow-50 border border-yellow-200'
+                      }`}>
+                        <div className="flex items-center">
+                          <div className={`flex-shrink-0 ${
+                            slipValidationResult.isValid ? 'text-green-500' : 'text-yellow-500'
+                          }`}>
+                            {slipValidationResult.isValid ? '✅' : '⚠️'}
+                          </div>
+                          <div className="ml-2">
+                            <p className={`text-sm font-medium ${
+                              slipValidationResult.isValid ? 'text-green-800' : 'text-yellow-800'
+                            }`}>
+                              {slipValidationResult.message}
+                            </p>
+                            {slipValidationResult.foundKeywords && slipValidationResult.foundKeywords.length > 0 && (
+                              <p className="text-xs text-gray-600 mt-1">
+                                พบคำสำคัญ: {slipValidationResult.foundKeywords.slice(0, 3).join(', ')}
+                                {slipValidationResult.foundKeywords.length > 3 && '...'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* แสดงสถานะการตรวจสอบ */}
+                    {isValidatingSlip && (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                          <p className="ml-2 text-sm text-blue-700">กำลังตรวจสอบสลิปโอนเงิน...</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {paymentProofPreview && (
+                      <div className="mb-4 p-4 border border-gray-300 rounded-lg bg-gray-50">
+                        <div className="flex items-start justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">หลักฐานการโอนเงิน:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPaymentProof(null);
+                              setPaymentProofPreview(null);
+                              if (fileInputRef.current) fileInputRef.current.value = '';
+                            }}
+                            className="text-red-600 hover:text-red-800 text-sm"
+                          >
+                            ลบรูป
+                          </button>
+                        </div>
+                        <div className="relative w-full h-64 bg-white rounded-lg border border-gray-200 overflow-hidden">
+                          <Image
+                            src={paymentProofPreview}
+                            alt="หลักฐานการโอนเงิน"
+                            fill
+                            className="object-contain"
+                            onLoad={() => console.log('📸 [DEBUG] Image loaded successfully')}
+                            onError={(e) => {
+                              console.error('📸 [DEBUG] Image failed to load:', e);
+                              setValidationError('ไม่สามารถแสดงรูปภาพได้ กรุณาลองอัปโหลดใหม่');
+                            }}
+                          />
+                        </div>
+                        {paymentProof && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            ไฟล์: {paymentProof.name} ({(paymentProof.size / 1024 / 1024).toFixed(2)} MB)
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* พื้นที่อัปโหลด */}
+                    <div
+                      className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md transition-colors cursor-pointer ${
+                        paymentProofPreview 
+                          ? 'border-green-300 bg-green-50 hover:border-green-400' 
+                          : 'border-gray-300 hover:border-indigo-400'
+                      }`}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <div className="space-y-1 text-center">
+                        {paymentProofPreview ? (
+                          <>
+                            <svg className="mx-auto h-8 w-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <p className="text-sm text-green-600 font-medium">อัปโหลดสำเร็จ</p>
+                            <p className="text-xs text-gray-500">คลิกเพื่อเปลี่ยนรูปภาพ</p>
+                          </>
+                        ) : (
+                          <>
+                            <svg
+                              className="mx-auto h-12 w-12 text-gray-400"
+                              stroke="currentColor"
+                              fill="none"
+                              viewBox="0 0 48 48"
+                              aria-hidden="true"
+                            >
+                              <path
+                                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                            <div className="flex text-sm text-gray-600">
+                              <label className="relative cursor-pointer rounded-md font-medium text-indigo-600 hover:text-indigo-500">
+                                <span>อัปโหลดรูปภาพ</span>
+                                <input
+                                  ref={fileInputRef}
+                                  id="file-upload"
+                                  name="file-upload"
+                                  type="file"
+                                  className="sr-only"
+                                  accept="image/*"
+                                  onChange={handleFileChange}
+                                />
+                              </label>
+                              <p className="pl-1">หรือลากและวางที่นี่</p>
+                            </div>
+                            <p className="text-xs text-gray-500">PNG, JPG, JPEG ขนาดไม่เกิน 5MB</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {validationError && (
+                      <p className="mt-2 text-sm text-red-600">{validationError}</p>
+                    )}
+                  </div>
+                )}
+
                 {paymentMethod === 'bank_transfer' && paymentSettings?.require_payment_proof && (
                   <div id="payment-proof-section" className="mt-4">
                     <h3 className="text-sm font-medium text-gray-700 mb-2">
@@ -1223,7 +1556,7 @@ const renderBankDetails = () => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={handlePayment}
-                    disabled={isProcessing || (paymentMethod === 'bank_transfer' && !paymentProof)}
+                    disabled={isProcessing || ((paymentMethod === 'bank_transfer' || paymentMethod === 'promptpay') && paymentSettings?.require_payment_proof && !paymentProof)}
                     className="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center disabled:bg-indigo-300 disabled:cursor-not-allowed"
                   >
                     {isProcessing ? (
@@ -1236,7 +1569,7 @@ const renderBankDetails = () => {
                     )}
                   </motion.button>
 
-                  {paymentMethod === 'bank_transfer' && !paymentProof && (
+                  {((paymentMethod === 'bank_transfer' || paymentMethod === 'promptpay') && paymentSettings?.require_payment_proof && !paymentProof) && (
                     <p className="mt-2 text-sm text-red-500 text-center">
                       * กรุณาแนบหลักฐานการโอนเงินก่อนยืนยันการสั่งซื้อ
                     </p>

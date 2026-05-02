@@ -178,7 +178,7 @@ export default function LoginModal({ isOpen, onClose, redirectAfterLogin }: Logi
       gisRenderedRef.current = false;
       successHandledRef.current = false;
     };
-  }, [isOpen, googleClientId, isGoogleAllowedHere]);
+  }, [isOpen, googleClientId, isGoogleAllowedHere, activeTab]);
   
   // จัดการการล็อกอิน
   const handleLogin = async (e: React.FormEvent) => {
@@ -352,17 +352,14 @@ export default function LoginModal({ isOpen, onClose, redirectAfterLogin }: Logi
                       <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-gray-300"></div>
                       </div>
-                      {/* <div className="relative flex justify-center text-sm">
+                      <div className="relative flex justify-center text-sm">
                         <span className="px-2 bg-white text-gray-500">หรือเข้าสู่ระบบด้วย</span>
-                      </div> */}
+                      </div>
                     </div>
                     
-                    {/* <div className="mt-6 grid grid-cols-2 gap-3">
-                      <div className="col-span-2 mb-2">
-                        
-                        <div ref={buttonContainerRef} className="flex justify-center"></div>
-                      </div>
-                    </div> */}
+                    <div className="mt-6">
+                      <div ref={buttonContainerRef} className="flex justify-center"></div>
+                    </div>
                     
                   </div>
                   )}
@@ -449,6 +446,23 @@ export default function LoginModal({ isOpen, onClose, redirectAfterLogin }: Logi
                   >
                     {isLoading ? 'กำลังสมัครสมาชิก...' : 'สมัครสมาชิก'}
                   </button>
+                  
+                  {googleClientId && isGoogleAllowedHere && (
+                    <div className="mt-6">
+                      <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-gray-300"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                          <span className="px-2 bg-white text-gray-500">หรือสมัครด้วย</span>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-6">
+                        <div ref={buttonContainerRef} className="flex justify-center"></div>
+                      </div>
+                    </div>
+                  )}
                   
                   <p className="mt-4 text-xs text-gray-500 text-center">
                     การสมัครสมาชิกถือว่าคุณยอมรับ{' '}

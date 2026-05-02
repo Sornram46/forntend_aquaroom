@@ -49,6 +49,9 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
+        console.log('✅ Frontend API: Got response from backend at:', url);
+        console.log('   - Raw data.data:', JSON.stringify(data.data, null, 2));
+
         // รวมรูปแบบข้อมูลให้เป็น publicSettings เดียวกัน
         const src = data.data ?? data;
         let bankAccounts: any[] = [];
@@ -64,6 +67,10 @@ export async function GET(request: NextRequest) {
           bank_transfer_enabled: !!src?.bank_transfer_enabled,
           credit_card_enabled: !!src?.credit_card_enabled,
           cod_enabled: !!src?.cod_enabled,
+          promptpay_enabled: !!src?.promptpay_enabled,
+          promptpay_id: src?.promptpay_id ?? null,
+          promptpay_name: src?.promptpay_name ?? null,
+          promptpay_qr_type: src?.promptpay_qr_type ?? 'phone',
           cod_fee: Number(src?.cod_fee ?? 0),
           cod_maximum: Number(src?.cod_maximum ?? src?.cod_max_amount ?? 0),
           payment_timeout_hours: src?.payment_timeout_hours ?? 24,
@@ -78,6 +85,12 @@ export async function GET(request: NextRequest) {
             branch: account.branch ?? null,
           })),
         };
+
+        console.log('✅ Frontend API: Successfully fetched from backend, sending to client:');
+        console.log('   - promptpay_enabled:', publicSettings.promptpay_enabled);
+        console.log('   - promptpay_id:', publicSettings.promptpay_id);
+        console.log('   - bank_transfer_enabled:', publicSettings.bank_transfer_enabled);
+        console.log('   - cod_enabled:', publicSettings.cod_enabled);
 
         return NextResponse.json({ success: true, data: publicSettings });
       } catch (err) {
@@ -95,6 +108,10 @@ export async function GET(request: NextRequest) {
         bank_transfer_enabled: true,
         credit_card_enabled: false,
         cod_enabled: true,
+        promptpay_enabled: false,
+        promptpay_id: null,
+        promptpay_name: null,
+        promptpay_qr_type: 'phone',
         cod_fee: 30,
         cod_maximum: 0,
         payment_timeout_hours: 24,
@@ -114,6 +131,10 @@ export async function GET(request: NextRequest) {
         bank_transfer_enabled: true,
         credit_card_enabled: false,
         cod_enabled: true,
+        promptpay_enabled: false,
+        promptpay_id: null,
+        promptpay_name: null,
+        promptpay_qr_type: 'phone',
         cod_fee: 30,
         cod_maximum: 0,
         payment_timeout_hours: 24,
