@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fetchHomepageSettings, toAbsoluteUrl } from '@/lib/db';
 
@@ -203,9 +204,12 @@ export default function Carousel() {
                   transition={{ delay: 0.5, duration: 0.8 }}
                   className="flex flex-col sm:flex-row gap-6 justify-center"
                 >
-                  <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 text-base font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 shadow-xl">
-                    เริ่มช็อปปิ้ง
-                  </button>
+                  <Link 
+                    href={carouselItems[currentSlide].buttonUrl || '/products'}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 text-base font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 shadow-xl inline-block text-center"
+                  >
+                    {carouselItems[currentSlide].buttonText || 'เริ่มช็อปปิ้ง'}
+                  </Link>
                 
                 </motion.div>
               </motion.div>
