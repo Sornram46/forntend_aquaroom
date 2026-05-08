@@ -8,7 +8,7 @@ import GoogleAnalytics from '@/components/GoogleAnalytics';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
-  title: 'AquaRoom - ร้านค้าออนไลน์',
+  title: ' จำหน่ายปลากัดสวยงาม- อาหารปลาและอุปกรณ์เลี้ยงปลาคุณภาพ',
   description: 'ร้านค้าออนไลน์ที่มีสินค้าคุณภาพดีราคาเป็นมิตร',
 };
 
