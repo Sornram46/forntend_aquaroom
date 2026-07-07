@@ -19,6 +19,17 @@ interface Address {
   is_default: boolean;
 }
 
+interface AddressSuggestion {
+  subDistrictId: number;
+  districtId: number;
+  provinceId: number;
+  district: string;
+  city: string;
+  province: string;
+  postalCode: string;
+  label: string;
+}
+
 function AddressPageContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
@@ -30,6 +41,9 @@ function AddressPageContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentAddress, setCurrentAddress] = useState<Address | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
 
   // ฟอร์มสำหรับกรอกที่อยู่
   const [formData, setFormData] = useState({
@@ -44,25 +58,6 @@ function AddressPageContent() {
     is_default: false,
   });
 
-  // รายชื่อจังหวัดในไทย (ตัวอย่างบางส่วน)
-  const provinces = [
-    "กรุงเทพมหานคร",
-    "กระบี่",
-    "กาญจนบุรี",
-    "กาฬสินธุ์",
-    "กำแพงเพชร",
-    "ขอนแก่น",
-    "จันทบุรี",
-    "ฉะเชิงเทรา",
-    "ชลบุรี",
-    "ชัยนาท",
-    "ชัยภูมิ",
-    "ชุมพร",
-    "เชียงราย",
-    "เชียงใหม่",
-    // เพิ่มจังหวัดอื่นๆ ตามต้องการ
-  ];
-
   // โหลดที่อยู่ของผู้ใช้เมื่อเข้าหน้า
   useEffect(() => {
     if (isLoading) return;
@@ -74,6 +69,57 @@ function AddressPageContent() {
 
     fetchUserAddresses();
   }, [isAuthenticated, isLoading, router]);
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      setAddressSuggestions([]);
+      setShowAddressSuggestions(false);
+      setIsSearchingAddress(false);
+      return;
+    }
+
+    const query = formData.district.trim();
+    if (query.length < 2) {
+      setAddressSuggestions([]);
+      setShowAddressSuggestions(false);
+      setIsSearchingAddress(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      setIsSearchingAddress(true);
+
+      try {
+        const response = await fetch(
+          `/api/thailand-address?query=${encodeURIComponent(query)}&limit=8`,
+          { signal: controller.signal }
+        );
+
+        if (!response.ok) {
+          throw new Error("ไม่สามารถค้นหาที่อยู่ได้");
+        }
+
+        const data = await response.json();
+        setAddressSuggestions(data.data || []);
+        setShowAddressSuggestions(true);
+      } catch (searchError) {
+        if ((searchError as Error).name !== "AbortError") {
+          console.error("Error searching address:", searchError);
+          setAddressSuggestions([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsSearchingAddress(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [formData.district, isModalOpen]);
 
   // ดึงข้อมูลที่อยู่จากฐานข้อมูล
   const fetchUserAddresses = async () => {
@@ -115,9 +161,22 @@ function AddressPageContent() {
     });
   };
 
+  const handleAddressSuggestionSelect = (suggestion: AddressSuggestion) => {
+    setFormData((prev) => ({
+      ...prev,
+      district: suggestion.district,
+      city: suggestion.city,
+      province: suggestion.province,
+      postal_code: suggestion.postalCode,
+    }));
+    setShowAddressSuggestions(false);
+  };
+
   // เปิดโมดัลเพื่อเพิ่มที่อยู่ใหม่
   const openAddModal = () => {
     setIsEditMode(false);
+    setAddressSuggestions([]);
+    setShowAddressSuggestions(false);
     setFormData({
       name: "",
       phone: "",
@@ -136,6 +195,8 @@ function AddressPageContent() {
   const openEditModal = (address: Address) => {
     setIsEditMode(true);
     setCurrentAddress(address);
+    setAddressSuggestions([]);
+    setShowAddressSuggestions(false);
     setFormData({
       name: address.name,
       phone: address.phone,
@@ -196,6 +257,8 @@ function AddressPageContent() {
       }
 
       setIsModalOpen(false);
+      setAddressSuggestions([]);
+      setShowAddressSuggestions(false);
 
       // โหลดข้อมูลที่อยู่ใหม่
       await fetchUserAddresses();
@@ -603,7 +666,7 @@ function AddressPageContent() {
 
                   {/* แถวของแขวง/ตำบลและเขต/อำเภอ */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div>
+                    <div className="relative">
                       <label
                         htmlFor="district"
                         className="block text-sm font-medium text-gray-700"
@@ -615,10 +678,39 @@ function AddressPageContent() {
                         name="district"
                         id="district"
                         value={formData.district}
-                        onChange={handleChange}
+                        onChange={(e) => {
+                          handleChange(e);
+                          setShowAddressSuggestions(true);
+                        }}
+                        onFocus={() => {
+                          if (addressSuggestions.length > 0) {
+                            setShowAddressSuggestions(true);
+                          }
+                        }}
                         required
+                        placeholder="พิมพ์แขวง/ตำบลเพื่อค้นหาอัตโนมัติ"
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                       />
+                      {showAddressSuggestions && (addressSuggestions.length > 0 || isSearchingAddress) && (
+                        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                          {isSearchingAddress && (
+                            <div className="px-3 py-2 text-sm text-gray-500">กำลังค้นหาที่อยู่...</div>
+                          )}
+                          {!isSearchingAddress && addressSuggestions.map((suggestion) => (
+                            <button
+                              key={suggestion.subDistrictId}
+                              type="button"
+                              onClick={() => handleAddressSuggestionSelect(suggestion)}
+                              className="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 last:border-b-0"
+                            >
+                              {suggestion.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <p className="mt-1 text-xs text-gray-500">
+                        เลือกรายการเพื่อเติม เขต/อำเภอ จังหวัด และรหัสไปรษณีย์ อัตโนมัติ
+                      </p>
                     </div>
 
                     <div>
@@ -649,21 +741,16 @@ function AddressPageContent() {
                       >
                         จังหวัด <span className="text-red-500">*</span>
                       </label>
-                      <select
+                      <input
+                        type="text"
                         name="province"
                         id="province"
                         value={formData.province}
                         onChange={handleChange}
                         required
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                      >
-                        <option value="">เลือกจังหวัด</option>
-                        {provinces.map((province) => (
-                          <option key={province} value={province}>
-                            {province}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="จังหวัด"
+                      />
                     </div>
 
                     <div>

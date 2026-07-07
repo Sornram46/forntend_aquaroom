@@ -153,6 +153,30 @@ export default function ProductDetailPage() {
     }
   };
 
+  const normalizeRelatedProduct = (item: any): Product => {
+    const images = [
+      ...(Array.isArray(item?.images) ? item.images : []),
+      ...(Array.isArray(item?.image_urls) ? item.image_urls : []),
+      item?.imageUrl,
+      item?.image_url,
+      item?.image_url_two,
+      item?.image_url_three,
+      item?.image_url_four,
+      item?.thumbnail,
+      item?.cover,
+      item?.image,
+    ].filter(Boolean);
+
+    return {
+      ...item,
+      imageUrl: images[0] ?? null,
+      imageUrlTwo: images[1] ?? null,
+      imageUrlThree: images[2] ?? null,
+      imageUrlFour: images[3] ?? null,
+      images,
+    };
+  };
+
   function isSupabasePublic(url?: string | null) {
     if (!url) return false;
     try {
@@ -218,6 +242,7 @@ export default function ProductDetailPage() {
           const data = await response.json();
           // กรองสินค้าปัจจุบันออก และจำกัดจำนวนสินค้าที่แสดง
           const filtered = data
+            .map((item: any) => normalizeRelatedProduct(item))
             .filter((p: Product) => p.id !== parseInt(productId as string))
             .slice(0, 4);
           setRelatedProducts(filtered);
@@ -262,6 +287,27 @@ export default function ProductDetailPage() {
         setShowAddedAnimation(false);
       }, 2000);
     }, 500);
+  };
+
+  const handleBuyNow = () => {
+    if (!product) return;
+    
+    // เก็บข้อมูลสินค้าไว้ใน sessionStorage แทนการใส่ตะกร้า
+    const directPurchase = {
+      items: [{
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        imageUrl: product.imageUrl,
+        quantity: quantity,
+        category: product.category
+      }],
+      timestamp: Date.now(),
+      mode: 'direct' // บอกว่าเป็นการซื้อตรง ไม่ผ่าน cart
+    };
+    
+    sessionStorage.setItem('directPurchase', JSON.stringify(directPurchase));
+    router.push('/checkout/payment');
   };
   
   // ฟังก์ชันเลื่อนรูปภาพ
@@ -341,32 +387,7 @@ export default function ProductDetailPage() {
               )}
 
               {/* ข้อมูลการรับประกัน */}
-              <ul className="space-y-2 text-gray-700">
-                <li className="flex items-start">
-                  <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  สินค้าคุณภาพดี
-                </li>
-                <li className="flex items-start">
-                  <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  {product?.warrantyInfo || 'รับประกันสินค้า 1 ปี'}
-                </li>
-                <li className="flex items-start">
-                  <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  จัดส่งฟรีเมื่อซื้อครบ 1,000 บาท
-                </li>
-                <li className="flex items-start">
-                  <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  {product?.returnPolicy || 'เปลี่ยนหรือคืนได้ภายใน 7 วัน'}
-                </li>
-              </ul>
+              
             </div>
           </div>
         );
@@ -960,36 +981,57 @@ export default function ProductDetailPage() {
                 </div>
                 
                 <div className="mt-8 space-y-4 relative">
-                  <motion.button 
-                    whileHover={{ scale: product.stock > 0 ? 1.02 : 1 }}
-                    whileTap={{ scale: product.stock > 0 ? 0.98 : 1 }}
-                    onClick={handleAddToCart}
-                    disabled={addingToCart || product.stock === 0}
-                    className={`w-full py-3 px-6 text-white rounded-md flex items-center justify-center ${
-                      product.stock > 0 
-                        ? 'bg-indigo-600 hover:bg-indigo-700' 
-                        : 'bg-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    {addingToCart ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        กำลังเพิ่มลงตะกร้า...
-                      </>
-                    ) : product.stock > 0 ? (
-                      <>
-                        <svg className="mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        เพิ่มลงตะกร้า
-                      </>
-                    ) : (
-                      'สินค้าหมด'
-                    )}
-                  </motion.button>
+                  <div className="flex gap-3">
+                    {/* ปุ่มเพิ่มลงตะกร้า */}
+                    <motion.button 
+                      whileHover={{ scale: product.stock > 0 ? 1.02 : 1 }}
+                      whileTap={{ scale: product.stock > 0 ? 0.98 : 1 }}
+                      onClick={handleAddToCart}
+                      disabled={addingToCart || product.stock === 0}
+                      className={`flex-1 py-3 px-4 text-white rounded-md flex items-center justify-center text-sm font-medium ${
+                        product.stock > 0 
+                          ? 'bg-indigo-600 hover:bg-indigo-700' 
+                          : 'bg-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      {addingToCart ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          กำลังเพิ่ม...
+                        </>
+                      ) : product.stock > 0 ? (
+                        <>
+                          <svg className="mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                          เพิ่มลงตะกร้า
+                        </>
+                      ) : (
+                        'สินค้าหมด'
+                      )}
+                    </motion.button>
+
+                    {/* ปุ่มสั่งซื้อเลย */}
+                    <motion.button
+                      whileHover={{ scale: product.stock > 0 ? 1.02 : 1 }}
+                      whileTap={{ scale: product.stock > 0 ? 0.98 : 1 }}
+                      onClick={handleBuyNow}
+                      disabled={product.stock === 0}
+                      className={`flex-1 py-3 px-4 rounded-md flex items-center justify-center text-sm font-medium border-2 ${
+                        product.stock > 0
+                          ? 'border-indigo-600 text-indigo-600 hover:bg-indigo-50'
+                          : 'border-gray-300 text-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      <svg className="mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      สั่งซื้อเลย
+                    </motion.button>
+                  </div>
                   
                   <AnimatePresence>
                     {showAddedAnimation && (
@@ -1085,10 +1127,11 @@ export default function ProductDetailPage() {
                     <div className="h-48 bg-gray-100 relative">
                       {relatedProduct.imageUrl ? (
                         <Image
-                          src={relatedProduct.imageUrl}
+                          src={toAbsoluteUrl(relatedProduct.imageUrl)}
                           alt={relatedProduct.name}
                           fill
                           style={{ objectFit: 'cover' }}
+                          unoptimized={isSupabasePublic(relatedProduct.imageUrl)}
                         />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-gray-100 to-gray-200">

@@ -193,6 +193,54 @@ export default function PaymentPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // สำหรับการซื้อตรง (Buy Now) หรือจาก Cart - อ่านจาก sessionStorage ทันที
+  const [purchaseItems, setPurchaseItems] = useState<typeof cartItems>(() => {
+    // อ่าน directPurchase จาก sessionStorage ตั้งแต่ตอนสร้าง state
+    if (typeof window !== 'undefined') {
+      const directData = sessionStorage.getItem('directPurchase');
+      if (directData) {
+        try {
+          const parsed = JSON.parse(directData);
+          // ตรวจสอบว่าข้อมูลไม่เกิน 5 นาที
+          if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+            console.log('✅ โหลดข้อมูลสั่งซื้อตรง:', parsed.items);
+            return parsed.items || [];
+          } else {
+            sessionStorage.removeItem('directPurchase');
+          }
+        } catch (err) {
+          console.error('Error parsing directPurchase:', err);
+          sessionStorage.removeItem('directPurchase');
+        }
+      }
+    }
+    return [];
+  });
+  
+  const [purchaseMode, setPurchaseMode] = useState<'cart' | 'direct'>(() => {
+    if (typeof window !== 'undefined') {
+      const directData = sessionStorage.getItem('directPurchase');
+      if (directData) {
+        try {
+          const parsed = JSON.parse(directData);
+          if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+            return 'direct';
+          }
+        } catch (err) {
+          // ignore
+        }
+      }
+    }
+    return 'cart';
+  });
+
+  // Update purchaseItems เมื่อ cartItems เปลี่ยน (เฉพาะ cart mode)
+  useEffect(() => {
+    if (purchaseMode === 'cart') {
+      setPurchaseItems(cartItems);
+    }
+  }, [cartItems, purchaseMode]);
+
   const [loading, setLoading] = useState(true);
   const [shippingAddress, setShippingAddress] = useState<Address | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'credit_card' | 'cod' | 'promptpay'>('bank_transfer');
@@ -205,14 +253,15 @@ export default function PaymentPage() {
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<Array<'bank_transfer' | 'credit_card' | 'cod' | 'promptpay'>>([]);
 
-  const subtotal = getCartTotal();
+  // คำนวณ subtotal จาก purchaseItems แทน cartItems
+  const subtotal = purchaseItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   const [shippingCost, setShippingCost] = useState(0);
   const [shippingLoading, setShippingLoading] = useState(false);
 
   // เพิ่ม useEffect สำหรับคำนวณค่าจัดส่ง
   useEffect(() => {
     const calculateShipping = async () => {
-      if (!shippingAddress || cartItems.length === 0) {
+      if (!shippingAddress || purchaseItems.length === 0) {
         setShippingCost(0);
         return;
       }
@@ -222,7 +271,7 @@ export default function PaymentPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            items: cartItems.map(item => ({
+            items: purchaseItems.map(item => ({
               id: item.id,
               quantity: item.quantity,
             })),
@@ -239,7 +288,7 @@ export default function PaymentPage() {
       }
     };
     calculateShipping();
-  }, [shippingAddress, cartItems, subtotal]);
+  }, [shippingAddress, purchaseItems, subtotal]);
 
   // แก้ไขการคำนวณยอดรวม
   const total = subtotal - discount + shippingCost;
@@ -254,7 +303,8 @@ export default function PaymentPage() {
       return;
     }
 
-    if (!isLoading && cartItems.length === 0) {
+    // ถ้าเป็นโหมดสั่งซื้อตรง ไม่ต้องเช็ค cart (อนุญาตให้ purchaseItems ว่างได้ในช่วงแรก)
+    if (!isLoading && purchaseItems.length === 0 && purchaseMode === 'cart') {
       router.push('/cart');
       return;
     }
@@ -618,10 +668,10 @@ export default function PaymentPage() {
       return;
     }
 
-    // ตรวจสอบข้อมูลสินค้าในตะกร้าก่อนส่งไปยัง API
-    const validCartItems = cartItems.filter(item => item.id !== undefined && item.id !== null);
+    // ตรวจสอบข้อมูลสินค้าก่อนส่งไปยัง API
+    const validCartItems = purchaseItems.filter(item => item.id !== undefined && item.id !== null);
     
-    if (validCartItems.length !== cartItems.length) {
+    if (validCartItems.length !== purchaseItems.length) {
       Swal.fire({
         title: 'เกิดข้อผิดพลาด',
         text: 'พบข้อมูลสินค้าในตะกร้ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง',
@@ -719,8 +769,12 @@ export default function PaymentPage() {
         throw new Error('ไม่พบหมายเลขคำสั่งซื้อจากเซิร์ฟเวอร์');
       }
 
-      // ล้างตะกร้าก่อนที่จะแสดง SweetAlert
-      clearCart();
+      // ล้างข้อมูลตามโหมดการซื้อ
+      if (purchaseMode === 'direct') {
+        sessionStorage.removeItem('directPurchase');
+      } else {
+        clearCart();
+      }
 
       console.log('Order created successfully:', { orderNumber });
 
@@ -1457,7 +1511,7 @@ const renderBankDetails = () => {
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">รายการสินค้า</h2>
 
                 <ul className="divide-y divide-gray-200">
-                  {cartItems.map((item) => (
+                  {purchaseItems.map((item) => (
                     <li key={item.id} className="py-4 flex">
                       <div className="flex-shrink-0 relative w-16 h-16 bg-gray-100 rounded-md overflow-hidden">
                         {item.imageUrl ? (

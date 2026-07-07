@@ -126,7 +126,7 @@ export default function LoginModal({ isOpen, onClose, redirectAfterLogin }: Logi
                 id_token: response.credential,
                 token: response.credential,
                 provider: 'google',
-                next: redirectRef.current || '/cart',
+                next: redirectRef.current || sessionStorage.getItem('next') || undefined,
               }),
             });
             const data = await res.json();
@@ -135,7 +135,7 @@ export default function LoginModal({ isOpen, onClose, redirectAfterLogin }: Logi
               localStorage.setItem('user', JSON.stringify(data.user));
               successHandledRef.current = true;
               onCloseRef.current?.();
-              window.location.href = redirectRef.current || '/cart';
+              window.location.href = redirectRef.current || sessionStorage.getItem('next') || '/products';
             } else {
               alert(data.message || 'Google login failed');
             }

@@ -32,12 +32,46 @@ export default function CartPage() {
   const [isCheckingAddress, setIsCheckingAddress] = useState(false);
   const [shippingCost, setShippingCost] = useState<number | null>(null);
   const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
+  
+  // เพิ่ม: เก็บ stock ของแต่ละสินค้า
+  const [productsStock, setProductsStock] = useState<Record<number, number>>({});
 
   useEffect(() => {
     setTimeout(() => {
       setLoading(false);
     }, 800);
   }, []);
+
+  // ดึง stock ของสินค้าทั้งหมดในตะกร้า
+  useEffect(() => {
+    const fetchProductsStock = async () => {
+      if (cartItems.length === 0) return;
+      
+      try {
+        const stockData: Record<number, number> = {};
+        
+        await Promise.all(
+          cartItems.map(async (item) => {
+            try {
+              const response = await fetch(`/api/products/${item.id}`);
+              if (response.ok) {
+                const product = await response.json();
+                stockData[item.id] = product.stock || 0;
+              }
+            } catch (err) {
+              console.error(`Error fetching stock for product ${item.id}:`, err);
+            }
+          })
+        );
+        
+        setProductsStock(stockData);
+      } catch (error) {
+        console.error('Error fetching products stock:', error);
+      }
+    };
+    
+    fetchProductsStock();
+  }, [cartItems.length]); // รันเมื่อจำนวน item เปลี่ยน
 
   const subtotal = getCartTotal();
   const total = subtotal - discount + Number(shippingCost ?? 0);
@@ -411,14 +445,17 @@ export default function CartPage() {
                               <div className="flex items-center border border-gray-300 rounded">
                                 <button 
                                   onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                  className="px-3 py-1 text-gray-600 hover:bg-gray-100"
+                                  className="px-3 py-1 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  disabled={item.quantity <= 1}
                                 >
                                   -
                                 </button>
                                 <span className="px-4 py-1 text-gray-800">{item.quantity}</span>
                                 <button 
                                   onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                  className="px-3 py-1 text-gray-600 hover:bg-gray-100"
+                                  className="px-3 py-1 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  disabled={item.quantity >= (productsStock[item.id] || 0)}
+                                  title={item.quantity >= (productsStock[item.id] || 0) ? `สินค้าเหลือแค่ ${productsStock[item.id] || 0} ชิ้น` : ''}
                                 >
                                   +
                                 </button>

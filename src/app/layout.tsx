@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollAnimation from '@/components/ScrollAnimation';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
+import LiveChat from '@/components/LiveChat';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
@@ -51,6 +52,7 @@ export default function RootLayout({
           <main>{children}</main>
           <Footer />
           <ScrollAnimation />
+          <LiveChat />
         </Providers>
       </body>
     </html>
