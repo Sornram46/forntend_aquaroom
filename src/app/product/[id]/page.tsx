@@ -699,52 +699,27 @@ export default function ProductDetailPage() {
                 <span className="text-lg mr-2">📞</span>
                 <div>
                   <p className="font-medium">โทรศัพท์</p>
-                  <p className="text-sm">02-XXX-XXXX</p>
+                  <p className="text-sm">095-160-4051</p>
                 </div>
               </div>
               <div className="flex items-center">
                 <span className="text-lg mr-2">📱</span>
                 <div>
-                  <p className="font-medium">Line Official</p>
-                  <p className="text-sm">@aquaroom</p>
+                  <p className="font-medium">facebook fanpage</p>
+                  <p className="text-sm">AquarRoom</p>
                 </div>
               </div>
               <div className="flex items-center">
                 <span className="text-lg mr-2">✉️</span>
                 <div>
                   <p className="font-medium">อีเมล</p>
-                  <p className="text-sm">info@aquaroom.com</p>
+                  <p className="text-sm">sonrammuenpet32@gmail.com</p>
                 </div>
               </div>
             </div>
           </div>
           
-          {/* ✅ เพิ่มแผนที่การจัดส่ง */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-              <svg className="w-5 h-5 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-              🗺️ แผนที่ค่าจัดส่ง
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div className="bg-green-50 border border-green-200 rounded p-3">
-                <h5 className="font-medium text-green-800 mb-2">กรุงเทพมหานคร</h5>
-                <p className="text-green-700">ค่าจัดส่ง: {product?.shippingCostBangkok || 0} บาท</p>
-                <p className="text-xs text-green-600 mt-1">จัดส่งภายใน 1-2 วัน</p>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                <h5 className="font-medium text-blue-800 mb-2">ต่างจังหวัด</h5>
-                <p className="text-blue-700">ค่าจัดส่ง: {product?.shippingCostProvinces || 50} บาท</p>
-                <p className="text-xs text-blue-600 mt-1">จัดส่งภายใน 2-3 วัน</p>
-              </div>
-              <div className="bg-purple-50 border border-purple-200 rounded p-3">
-                <h5 className="font-medium text-purple-800 mb-2">พื้นที่ห่างไกล</h5>
-                <p className="text-purple-700">ค่าจัดส่ง: {product?.shippingCostRemote || 100} บาท</p>
-                <p className="text-xs text-purple-600 mt-1">จัดส่งภายใน 3-5 วัน</p>
-              </div>
-            </div>
-          </div>
+         
         </div>
       </div>
     </div>

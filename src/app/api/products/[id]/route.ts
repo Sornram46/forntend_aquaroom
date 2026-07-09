@@ -33,6 +33,26 @@ function normalizeProduct(src: any) {
 
   const stockRaw = p.stock ?? p.quantity ?? p.inventory ?? p.available ?? p.qty ?? 0;
   const stock = typeof stockRaw === 'string' ? parseInt(stockRaw, 10) || 0 : Number(stockRaw) || 0;
+  const toNumberOrNull = (value: unknown) => {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const toNumberOrUndefined = (value: unknown) => {
+    const parsed = toNumberOrNull(value);
+    return parsed === null ? undefined : parsed;
+  };
+  const toBooleanOrUndefined = (value: unknown) => {
+    if (value === null || value === undefined || value === '') return undefined;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+      if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+    }
+    return Boolean(value);
+  };
 
   // รวมทุกแหล่งรูป + ตัดซ้ำ
   const list: string[] = [
@@ -63,6 +83,18 @@ function normalizeProduct(src: any) {
     imageUrlTwo: imageUrlTwo ?? null,
     imageUrlThree: imageUrlThree ?? null,
     imageUrlFour: imageUrlFour ?? null,
+    hasSpecialShipping: toBooleanOrUndefined(p.hasSpecialShipping ?? p.has_special_shipping),
+    specialShippingBase: toNumberOrUndefined(p.specialShippingBase ?? p.special_shipping_base),
+    specialShippingQty: toNumberOrUndefined(p.specialShippingQty ?? p.special_shipping_qty),
+    specialShippingExtra: toNumberOrUndefined(p.specialShippingExtra ?? p.special_shipping_extra),
+    specialShippingNotes: p.specialShippingNotes ?? p.special_shipping_notes ?? undefined,
+    shippingCostBangkok: toNumberOrUndefined(p.shippingCostBangkok ?? p.shipping_cost_bangkok),
+    shippingCostProvinces: toNumberOrUndefined(p.shippingCostProvinces ?? p.shipping_cost_provinces),
+    shippingCostRemote: toNumberOrUndefined(p.shippingCostRemote ?? p.shipping_cost_remote),
+    freeShippingThreshold: toNumberOrUndefined(p.freeShippingThreshold ?? p.free_shipping_threshold),
+    deliveryTime: p.deliveryTime ?? p.delivery_time ?? undefined,
+    shippingNotes: p.shippingNotes ?? p.shipping_notes ?? undefined,
+    specialHandling: toBooleanOrUndefined(p.specialHandling ?? p.special_handling),
   };
 }
 
