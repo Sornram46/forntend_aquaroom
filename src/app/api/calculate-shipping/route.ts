@@ -96,6 +96,26 @@ export async function POST(req: Request) {
         else normals.push({ id: it.id, name, qty, p });
       }
 
+      const thresholdList = items
+        .map(it => productMap.get(it.id)?.free_shipping_threshold)
+        .map(v => toNum(v))
+        .filter((v): v is number => v != null && v > 0);
+      const freeShippingThreshold = thresholdList.length > 0 ? Math.min(...thresholdList) : null;
+      if (freeShippingThreshold != null && subtotal >= freeShippingThreshold) {
+        const patched = {
+          ...beJson,
+          version: 'proxy-fix-v3-mixed',
+          shippingCost: 0,
+          data: {
+            ...(beJson?.data || {}),
+            totalShippingCost: 0,
+            details: [{ type: 'free_shipping_threshold', threshold: freeShippingThreshold, subtotal, freeShippingApplied: true }],
+            freeShippingApplied: true
+          }
+        };
+        return new Response(JSON.stringify(patched), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+
       // พิเศษ: รวมทั้งกลุ่ม
       let total = 0;
       const newDetails: any[] = [];
